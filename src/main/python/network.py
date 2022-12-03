@@ -29,6 +29,7 @@ if PLAYER != RANDOM:
 
 class RandomPlayer():
     ''' For testing purpose only! '''
+
     def __init__(self):
         print('[RandomPlayer]', ' === Using RANDOM PLAYER for testing ===')
 
@@ -54,11 +55,11 @@ class NeuralNet():
             resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../resources/base/')
 
         if PLAYER == VER_9:
-            trainingsDir = os.path.join(resources_path, 'v9_lead/')
+            trainingsDir = "./src/main/resources/base/v9_lead/"
         elif PLAYER == EUROAI:
-            trainingsDir = os.path.join(resources_path, 'euroAI/')
+            trainingsDir = "./src/main/resources/base/euroAI/"
         else:
-            raise('[NeuralNet] Unknown player initialised ({}). Aborting'.format(PLAYER))
+            raise ('[NeuralNet] Unknown player initialised ({}). Aborting'.format(PLAYER))
 
         print('\n[NeuralNet]', ' === Using {} ===\n'.format('VER9' if PLAYER == VER_9 else 'EUROAI'))
 
@@ -119,7 +120,7 @@ class NeuralNet():
         '''
 
         #print('[NeuralNet]', 'generateBar with params')
-        #for k, v in kwargs.items():
+        # for k, v in kwargs.items():
         #    print('  ', k, v)
 
         rhythmContexts, melodyContexts = self.getContexts(kwargs)
@@ -186,7 +187,7 @@ class NeuralNet():
                 'pen': [1, 4, 6, 8, 11],
                 '5th': [1, 8]
             }[injection_params[1]]
-            #if len(injection_params) > 2 and injection_params[2]:
+            # if len(injection_params) > 2 and injection_params[2]:
             melodyPool.extend([x+12 for x in melodyPool])
 
             melodyContexts = np.random.choice(melodyPool, size=(1, 4, 48))
@@ -236,7 +237,7 @@ class NeuralNet():
             sampledMelody = np.array([[np.random.choice(self.vocabulary['melody'], p=dist)
                                        for dist in output[1][0]]])
             sampledChords = [list(rand.choice(self.vocabulary['melody'], p=curr_p, size=chord_num,
-                                           replace=True)) for curr_p in output[1][0]]
+                                              replace=True)) for curr_p in output[1][0]]
         elif mode == 'top':
             # Random from top 5 predictions....
             r = []
@@ -259,7 +260,7 @@ class NeuralNet():
 
                 m.append(rand.choice(top5_m_indices, p=m_probs))
                 sampledChords.append(list(rand.choice(top5_m_indices, p=m_probs,
-                                                       replace=True, size=chord_num)))
+                                                      replace=True, size=chord_num)))
             sampledMelody = np.array([m])
 
         #print('[NeuralNet]', sampledRhythm.shape, sampledMelody.shape)
@@ -277,7 +278,7 @@ class NeuralNet():
             melody = [random.choice([1, 7]) for _ in range(48)]
             return np.array([rhythm]), np.array([[melody]])
 
-        #print(measure.notes)
+        # print(measure.notes)
 
         rhythm = []
         melody = [-1]*48
@@ -289,8 +290,8 @@ class NeuralNet():
                 if n[0] <= 0:
                     continue
                 onTicks[n[1]] = True
-                melody[n[1]//2] = n[0]%12 + 1
-                pcs.append(n[0]%12+1)
+                melody[n[1]//2] = n[0] % 12 + 1
+                pcs.append(n[0] % 12+1)
             except IndexError:
                 pass
 
