@@ -1,8 +1,11 @@
+wheel
+cython
 tensorflow==1.15.4
 pyqt5<=5.9.2
-keras<3.0
+keras==2.2.4
+h5py==2.10.0
 python-osc
-rtmidi
+python-rtmidi==1.4.9
 numpy
 mido
 fbs
