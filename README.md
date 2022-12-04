@@ -48,9 +48,7 @@ For complete beginners in Python and Terminal
 
 1. Open Terminal from the Finder.
 
-2. Install XCode, Homebrew and Python 3.X. A simple guide that covers these can be found
-   [here](https://installpython3.com/mac/). Follow the steps up until the
-   Virtual Environments stuff (I recommend something easier in the next step)
+2. Install XCode, Homebrew and Python 3.X. A simple guide that covers these can be found [here](https://installpython3.com/mac/). Follow the steps up until the Virtual Environments stuff (I recommend something easier in the next step)
 
 3. Install [pyenv](https://github.com/pyenv/pyenv):
 
@@ -61,35 +59,27 @@ For complete beginners in Python and Terminal
 
    Restart the Terminal.
 
-4. Create a folder and navigate into where you would like to install musAIc
-   (this is done with the commands `$ mkdir DirectoryName/` to make directories and `$ cd
-   path/to/directory` to move into a directory). This could be in somewhere like
-   Projects/, Music/Tools/, or whatever you like to do to organise your projects.
+4. Create a folder and navigate to where you would like to install musAIc (this is done with the commands `$ mkdir DirectoryName/` to make directories and `$ cd path/to/directory` to move into a directory). This could be in somewhere like `Projects/`, `Music/Tools/`, or whatever you like to do to organise your projects.
 
-5. Download (clone) this repository in this folder with the command, and move
-   into the folder:
+5. Download (clone) this repository in this folder with the command, and move into the folder:
 
    ```bash
-   git clone https://github.com/al165/musaic.git
+   git clone https://github.com/Denbergvanthijs/musaic.git
    cd musaic
    ```
 
-6. Create virtual environment and install dependencies:
+6. Create a virtual environment and install dependencies:
 
    ```bash
    pyenv install 3.6.8
    pyenv local 3.6.8
    ```
 
-   (Verify that the command `$ pyenv which python` returns some path with with
-   `3.6.8` somewhere in it)
+   (Verify that the command `$ pyenv which python` returns some path with `3.6.8` somewhere in it)
 
 7. Finally, launch musAIc with the command `$ python src/main/python/main.py`
 
-8. **Bonus**: to make it easier to start musAIc without using the terminal,
-   first copy the output of the command `$ pwd` in the directory you launched
-   musAIc from. Then, create a new file with your favourite text editor called
-   `musaic.sh` and put in the following with the path you just copied:
+8. **Bonus**: to make it easier to start musAIc without using the terminal, first copy the output of the command `$ pwd` in the directory you launched musAIc from. Then, create a new file with your favourite text editor called `musaic.sh` and put in the following with the path you just copied:
 
    ```bash
    #!/bin/bash
@@ -104,7 +94,7 @@ For complete beginners in Python and Terminal
    sudo chmod +x ~/Desktop/musaic.py
    ```
 
-   (If you are promted to enter your password, do so and press enter)
+   (If you are prompted to enter your password, do so and press enter)
 
    Now, to launch musAIc just double click `musaic.sh`!
 
@@ -116,10 +106,10 @@ For complete beginners in Python and Terminal
 
 1. Make sure whichever MIDI device you wish to use (either through a soundcard, USB or a virtual MIDI cable) is initialised and working _before_ starting `musAIc`
 
-2. Once started click `options`, tick the box next to MIDI, then select you MIDI device from the dropdown menu. Optionally you can send the MIDI clock signal too (on by default), however this is largely untested may act weird.
+2. Once started click `options`, tick the box next to MIDI, then select your MIDI device from the dropdown menu. Optionally you can send the MIDI clock signal too (on by default), however, this is largely untested and may act weird.
 
 Note: there is also a small bug where re-opening the options dialog will reset which MIDI device it will use, so make sure to select the desired one again.
 
-### Changing the AI musician
+### Changing the AI musicia
 
-`musAIc` is currently bundelled with two neural networks: the original developed in 2019 (affectionately named `VERSION 9`), and the WIP pop star `EUROAI`. In the future they (and others!) would be selectable from within the GUI, however for now the only way is to change the `PLAYER` global variable in `src/main/python/network.py` to either 1 for `VERSION_9`, 2 for `EUROAI`, or 0 for a random number generator (for development/debugging, will not load `tensorflow`).
+`musAIc` is currently bundled with two neural networks: the original developed in 2019 (affectionately named `VERSION 9`), and the WIP pop star `EUROAI`. In the future they (and others!) would be selectable from within the GUI, however for now the only way is to change the `PLAYER` global variable in `src/main/python/network.py` to either 1 for `VERSION_9`, 2 for `EUROAI`, or 0 for a random number generator (for development/debugging, will not load `tensorflow`).
