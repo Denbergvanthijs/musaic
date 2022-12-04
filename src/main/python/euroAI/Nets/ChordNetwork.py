@@ -1,20 +1,10 @@
-# -*- coding: utf-8 -*-
-
 import json
-import pickle
-from collections import Counter
 
-import keras.backend as K
-import numpy as np
-import numpy.random as rand
-from keras.layers import (LSTM, Bidirectional, Conv1D, Dense, Embedding, Input,
-                          Lambda, Layer, RepeatVector, Reshape,
-                          TimeDistributed)
+from keras.layers import Dense, Input
 from keras.layers import concatenate as Concat
-from keras.losses import categorical_crossentropy, mean_squared_error
-from keras.metrics import categorical_accuracy, mean_absolute_error
-from keras.models import Model, load_model
-from keras.utils import plot_model, to_categorical
+from keras.losses import categorical_crossentropy
+from keras.metrics import categorical_accuracy
+from keras.models import Model
 from v9.Nets.MelodyEncoder import MelodyEncoder
 
 
@@ -91,10 +81,6 @@ class ChordNetwork(Model):
         chord_net.load_weights(save_dir + "/chord_net_weights")
 
         return chord_net
-
-
-# %%
-
 
 # loaded_chord_net = ChordNetwork.from_saved_custom("Trainings/chord_test/chord",
 #                                                  load_melody_encoder=True,

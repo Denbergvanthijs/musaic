@@ -1,22 +1,11 @@
-# -*- coding: utf-8 -*-
-
-# %%
-import pickle
-from collections import Counter
-
 import keras.backend as K
-import numpy as np
-import numpy.random as rand
-from keras.layers import (LSTM, Bidirectional, Concatenate, Dense, Embedding,
-                          Input, Lambda, Layer, RepeatVector, TimeDistributed)
+from keras.layers import (LSTM, Dense, Input, Lambda, RepeatVector,
+                          TimeDistributed)
 from keras.layers import concatenate as Concat
-from keras.losses import categorical_crossentropy, mean_squared_error
-from keras.metrics import categorical_accuracy, mean_absolute_error
-from keras.models import Model, load_model
-from keras.utils import to_categorical
-from v9.Nets.RhythmEncoder import BarEmbedding, RhythmEncoder
-
-# %%
+from keras.losses import categorical_crossentropy
+from keras.metrics import categorical_accuracy
+from keras.models import Model
+from v9.Nets.RhythmEncoder import RhythmEncoder
 
 
 class RhythmNetwork(Model):
@@ -72,8 +61,8 @@ class RhythmNetwork(Model):
         self.params = [rhythm_encoder.params, dec_lstm_size, V,
                        enc_use_meta, dec_use_meta]
 
-#        self.params = [V, context_size, dec_lstm_size,
-#                       enc_use_meta, dec_use_meta]
+        # self.params = [V, context_size, dec_lstm_size,
+        #                enc_use_meta, dec_use_meta]
 
         self.use_meta = enc_use_meta or dec_use_meta
 
@@ -100,14 +89,12 @@ class RhythmNetwork(Model):
     def __repr__(self):
         return "RhythmNetwork_" + "_".join(map(str, self.params[1:]))
 
-# %%
-
-#V = 127
+# V = 127
 #
 # bemb = BarEmbedding(V=V, beat_embed_size=12,
 #                    embed_lstm_size=12, out_size=9)
 #
-#renc = RhythmEncoder(bemb, context_size=4, lstm_size=14)
+# renc = RhythmEncoder(bemb, context_size=4, lstm_size=14)
 #
 # rn = RhythmNetwork(V=V, rhythm_encoder=renc, dec_lstm_size=10,
 #                   dec_use_meta=True, compile_now=True)

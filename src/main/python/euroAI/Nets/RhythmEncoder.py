@@ -1,15 +1,8 @@
-# -*- coding: utf-8 -*-
-
 import keras.backend as K
-from keras.layers import (LSTM, Bidirectional, Concatenate, Dense, Embedding,
-                          Input, Lambda, Layer, RepeatVector, TimeDistributed)
-from keras.layers import concatenate as Concat
-from keras.losses import categorical_crossentropy, mean_squared_error
-from keras.metrics import categorical_accuracy, mean_absolute_error
+from keras.layers import LSTM, Bidirectional, Dense, Embedding, Input, Lambda
+from keras.losses import categorical_crossentropy
+from keras.metrics import categorical_accuracy
 from keras.models import Model
-from keras.utils import to_categorical
-
-# %%
 
 
 class BarEmbedding(Model):
@@ -73,9 +66,5 @@ class RhythmEncoder(Model):
     def __repr__(self):
         return "RhythmEncoder_" + "_".join(map(str, self.params))
 
-
-# %%
-#
-#be = BarEmbedding(375, 12, 12, 8)
-#
-#renc = RhythmEncoder(be, 4, 28)
+# be = BarEmbedding(375, 12, 12, 8)
+# renc = RhythmEncoder(be, 4, 28)

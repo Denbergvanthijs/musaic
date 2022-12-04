@@ -1,23 +1,9 @@
-# -*- coding: utf-8 -*-
-
-# %%
-import pickle
-from collections import Counter
-
-import keras.backend as K
-import numpy as np
-import numpy.random as rand
-from keras.layers import (LSTM, Bidirectional, Conv1D, Dense, Embedding, Input,
-                          Lambda, Layer, RepeatVector, Reshape,
-                          TimeDistributed)
+from keras.layers import LSTM, Dense, Input, RepeatVector, TimeDistributed
 from keras.layers import concatenate as Concat
-from keras.losses import categorical_crossentropy, mean_squared_error
-from keras.metrics import categorical_accuracy, mean_absolute_error
-from keras.models import Model, load_model
-from keras.utils import plot_model, to_categorical
+from keras.losses import categorical_crossentropy
+from keras.metrics import categorical_accuracy
+from keras.models import Model
 from v9.Nets.MelodyEncoder import MelodyEncoder
-
-# %%
 
 
 class MelodyNetwork(Model):
@@ -72,9 +58,9 @@ class MelodyNetwork(Model):
         self.params = [melody_encoder.params, rhythm_embed_size,
                        dec_lstm_size, V, enc_use_meta, dec_use_meta]
 
-#        self.params = [V, rhythm_embed_size,
-#                       dec_lstm_size,
-#                       enc_use_meta, dec_use_meta]
+        # self.params = [V, rhythm_embed_size,
+        #                dec_lstm_size,
+        #                enc_use_meta, dec_use_meta]
 
         if self.use_meta:
             super().__init__(inputs=[prev_melodies, bar_embedding,
@@ -103,10 +89,6 @@ class MelodyNetwork(Model):
                                  enc_lstm_size=enc_lstm_size)
         return lead_enc
 
-# %%
-#
-#menc = MelodyEncoder(m=48, conv_f=4, conv_win_size=3,enc_lstm_size=52)
-#
+# menc = MelodyEncoder(m=48, conv_f=4, conv_win_size=3,enc_lstm_size=52)
 # mnet = MelodyNetwork(V=25, rhythm_embed_size=16, melody_encoder=menc,
 #                     dec_lstm_size=32, dec_use_meta=True, compile_now=True)
-#
