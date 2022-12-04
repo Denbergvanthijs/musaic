@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import os
 import pickle
 import random
@@ -7,7 +5,6 @@ from copy import deepcopy
 from fractions import Fraction
 
 import numpy as np
-import numpy.random as rand
 from keras.utils import to_categorical
 from v9.Data.utils import label
 
@@ -72,7 +69,7 @@ class DataGenerator:
         for k in meta_keys:
             if k == "ts":
                 frac = Fraction(metaData[k], _normalize=False)
-                #values.extend([frac.numerator, frac.denominator])
+                # values.extend([frac.numerator, frac.denominator])
                 values[i: i + 2] = [frac.numerator, frac.denominator]
                 i += 2
             else:
@@ -267,29 +264,15 @@ class CombinedGenerator(DataGenerator):
                 yield [*rhythm_x, rhythms, melody_x], [rhythm_y, melody_y]
 
 
-# %%
-#
 #cg = CombinedGenerator("Data/oldfiles", save_conversion_params=0)
 #
-#
 #ls = list(cg.generate_data(rhythm_context_size=2, melody_context_size=2, with_metaData=0))
-#
-#
-# %%
-#
 #
 #rg = RhythmGenerator("Data/oldfiles", save_conversion_params=0)
 #
 #
 #ls = list(rg.generate_data(context_size=2, with_rhythms=0, with_metaData=0))
 #
-#
-# %%
-#
 #xs, ys = list(zip(*ls))
 #
-#
 #cs1, cs2 = list(zip(*xs))
-#
-#
-#

@@ -1,22 +1,11 @@
-# -*- coding: utf-8 -*-
-
 import json
 
 import keras.backend as K
-import numpy as np
-import numpy.random as rand
-import tensorflow as tf
-from keras.layers import Dense, Input, Lambda
-from keras.models import Model, load_model
-from keras.utils import plot_model, to_categorical
-from v9.Data.DataGenerators import CombinedGenerator
-from v9.Nets.MelodyEncoder import MelodyEncoder
+from keras.layers import Input, Lambda
+from keras.models import Model
 from v9.Nets.MelodyNetwork import MelodyNetwork
-from v9.Nets.MetaPredictor import MetaPredictor
-from v9.Nets.RhythmEncoder import BarEmbedding, RhythmEncoder
+from v9.Nets.RhythmEncoder import BarEmbedding
 from v9.Nets.RhythmNetwork import RhythmNetwork
-
-# %%
 
 
 class CombinedNetwork(Model):
@@ -169,14 +158,12 @@ class CombinedNetwork(Model):
         with open(dir_to_save + "/parameters.json", "w") as handle:
             json.dump(self.params, handle)
 
-# %%
 #
 #
 #loaded_net = CombinedNetwork.from_saved_custom("Nets/weights/Fri_Mar_15_05-50-18_2019")
 #
 #
 #
-# %%
 #
 #save_dir = "Nets/weights/Fri_Mar_15_05-50-18_2019"
 #
@@ -208,7 +195,6 @@ class CombinedNetwork(Model):
 #                           compile_now=False)
 #
 #
-# %%
 #
 #be2 = BarEmbedding(V=V_rhythm, beat_embed_size=beat_embed_size, embed_lstm_size=embed_lstm_size, out_size=out_size)
 #
@@ -219,7 +205,6 @@ class CombinedNetwork(Model):
 #                           conv_f=conv_f, conv_win_size=conv_win_size, enc_lstm_size=melody_enc_lstm_size,
 #                           dec_lstm_1_size=melody_dec_lstm_1_size, dec_lstm_2_size=melody_dec_lstm_2_size,
 #                           meta_len=meta_data_len)
-# %%
 #
 #cur = "Wed_Mar__6_17-22-49_2019"
 #
@@ -229,14 +214,12 @@ class CombinedNetwork(Model):
 #
 #
 #
-# %%
 #
 #comb_net2 = CombinedNetwork(context_size, m, meta_data_len, be2, rhythm_net2, melody_net2)
 #
 #
 #
 #
-# %%
 # comb_net2.fit_generator(data_iter,
 #                       steps_per_epoch=cg.num_pieces, epochs=5, verbose=2)
 #
@@ -244,7 +227,6 @@ class CombinedNetwork(Model):
 #
 
 
-# %%
 #context_size = 3
 #m = 48
 #
@@ -265,7 +247,6 @@ class CombinedNetwork(Model):
 #                 enc_use_meta=False, dec_use_meta=True,
 #                 compile_now=False)
 #
-# %%
 #
 # cn = CombinedNetwork(context_size=context_size, melody_bar_len=m, meta_len=9,
 #                               bar_embedder=be, rhythm_net=rn, melody_net=mn,

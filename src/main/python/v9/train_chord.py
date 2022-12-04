@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
-
 import os
 
-import numpy as np
 from Data.DataGeneratorsLeadMetaChords import ChordGenerator
 from Nets.ChordNetwork import ChordNetwork
 from Nets.CombinedNetwork import CombinedNetwork
@@ -34,9 +31,6 @@ if __name__ == "__main__":
     meta_predictor = MetaPredictor.from_saved_custom("/".join([top_dir, save_dir, "meta"]))
     meta_predictor.freeze()
 
-
-# %%
-
     music_dir = "../../Data/music21"
     ch_gen = ChordGenerator(music_dir, save_conversion_params="/".join([top_dir, save_dir]),
                             to_list=False, meta_prep_f=None)  # None
@@ -45,7 +39,6 @@ if __name__ == "__main__":
 
     x, y = ch_gen.list_data()
 
-# %%
     comb_net = CombinedNetwork.from_saved_custom("/".join([top_dir, save_dir, "weights"]),
                                                  meta_predictor,
                                                  generation=True,
@@ -60,17 +53,9 @@ if __name__ == "__main__":
 #        l.trainable = False
     fresh_melody_enc.compile_default()
 
-
-# %%
-
     chord_net = ChordNetwork(fresh_melody_enc, 28, ch_gen.V, compile_now=True)
 
-
-# %%
-
     chord_net.fit(x=x, y=y, epochs=250, verbose=2)
-
-# %%
 
     # ! Number of chords in bar and number of note values
     # above 12 don't match !

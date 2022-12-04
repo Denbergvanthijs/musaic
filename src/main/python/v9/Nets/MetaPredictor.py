@@ -1,16 +1,10 @@
-# -*- coding: utf-8 -*-
 import json
 
-import keras.backend as K
-import numpy as np
 import numpy.random as rand
 from keras.layers import (LSTM, Bidirectional, Concatenate, Dense, Dropout,
-                          Input, Lambda, TimeDistributed)
-from keras.metrics import (categorical_crossentropy, mean_absolute_error,
-                           mean_squared_error)
+                          Input, TimeDistributed)
+from keras.metrics import categorical_crossentropy, mean_absolute_error
 from keras.models import Model
-from keras.regularizers import Regularizer
-from keras.utils import to_categorical
 
 #from meta_embed import MetaEmbedding, get_meta_embedder
 

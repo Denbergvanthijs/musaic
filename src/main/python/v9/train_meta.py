@@ -1,15 +1,10 @@
-# -*- coding: utf-8 -*-
-
-# %%
 from time import asctime
 
 import numpy as np
 import numpy.random as rand
 from Data.DataGeneratorsLead import CombinedGenerator
-from Nets.MetaEmbedding import MetaEmbedding, get_meta_embedder
+from Nets.MetaEmbedding import get_meta_embedder
 from Nets.MetaPredictor import MetaPredictor, dirichlet_noise
-
-# %%
 
 
 def gen_meta(comb_gen_instance):
@@ -56,25 +51,20 @@ def gen_preds_and_meta(comb_gen_instance, meta_embedder,
                 return
 
             data_generator = comb_gen_instance.generate_data()
-# %%
 
 
 if __name__ == "__main__":
-
-    # %%
 
     top_dir = "Trainings"
 
     save_dir = asctime().split()
     save_dir = "_".join([*save_dir[0:3], *save_dir[3].split(":")[:2]])
-    # %%
     cg = CombinedGenerator("Data/lessfiles",
                            save_conversion_params=False,
                            to_list=False)
 
     cg.get_num_pieces()
 
-# %%
     meta_examples = rand.permutation(np.vstack(list(gen_meta(cg))))
 
     meta_emb, eval_results = get_meta_embedder(meta_examples,
@@ -85,8 +75,6 @@ if __name__ == "__main__":
     print("MetaEmbedding trained!\n\tevaluation results:\n\t",
           eval_results)
 
-# %%
-
     pred_meta_gen = gen_preds_and_meta(cg, meta_emb, forever=True)
 
     r_params = (None, cg.rhythm_V)
@@ -95,17 +83,10 @@ if __name__ == "__main__":
     mp = MetaPredictor(r_params, m_params, meta_emb.embed_size,
                        8, 12)
 
-# %%
-
     mp.fit_generator(pred_meta_gen,
                      steps_per_epoch=cg.num_pieces,
                      epochs=4)
 
-
-# %%
-
     meta_emb.save_model_custom("/".join([top_dir, save_dir, "meta"]))
-
-# %%
 
     mp.save_model_custom("/".join([top_dir, save_dir, "meta"]))

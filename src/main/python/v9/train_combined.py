@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
-
 import os
-from time import asctime
 
 from Data.DataGeneratorsLeadMeta import CombinedGenerator
 from Nets.CombinedNetwork import CombinedNetwork

@@ -3,9 +3,8 @@ import json
 import keras.backend as K
 import numpy as np
 import numpy.random as rand
-from keras.layers import LSTM, Dense, Input, Lambda, TimeDistributed
-from keras.metrics import (categorical_crossentropy, mean_absolute_error,
-                           mean_squared_error)
+from keras.layers import Dense, Input
+from keras.metrics import mean_absolute_error, mean_squared_error
 from keras.models import Model
 from keras.regularizers import Regularizer
 

@@ -5,12 +5,9 @@ import keras.backend as K
 import numpy as np
 import numpy.random as rand
 from keras.layers import (LSTM, Bidirectional, Concatenate, Dense, Dropout,
-                          Input, Lambda, TimeDistributed)
-from keras.metrics import (categorical_crossentropy, mean_absolute_error,
-                           mean_squared_error)
+                          Input, TimeDistributed)
+from keras.metrics import categorical_crossentropy, mean_absolute_error
 from keras.models import Model
-from keras.regularizers import Regularizer
-from keras.utils import to_categorical
 
 #from meta_embed import MetaEmbedding, get_meta_embedder
 
@@ -29,8 +26,8 @@ class MetaPredictor(Model):
         rhythms_dist = Input(shape=rhythm_params)
         melodies_dist = Input(shape=melody_params)
 
-        #print('\n[MetaPredictor]', rhythm_params, melody_params)
-        #print(meta_embed_size, lstm_size, dense_size, compile_now)
+        # print('\n[MetaPredictor]', rhythm_params, melody_params)
+        # print(meta_embed_size, lstm_size, dense_size, compile_now)
         # print()
 
         rhythms_embed = TimeDistributed(Dense(16))(rhythms_dist)
@@ -89,7 +86,7 @@ class MetaPredictor(Model):
         with open(save_dir + "/meta_predictor_parameters.json", "r") as handle:
             param_dict = json.load(handle)
 
-        #print('[MetaPredictor]', 'from_saved_custom', save_dir)
+        # print('[MetaPredictor]', 'from_saved_custom', save_dir)
 
         meta_pred = cls(param_dict["rhythm_params"],
                         param_dict["melody_params"],
@@ -98,6 +95,6 @@ class MetaPredictor(Model):
                         param_dict["dense_size"],
                         compile_now=compile_now)
 
-        #meta_pred.load_weights(save_dir + "/meta_predictor_weights")
+        # meta_pred.load_weights(save_dir + "/meta_predictor_weights")
 
         return meta_pred

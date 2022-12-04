@@ -1,22 +1,6 @@
-# -*- coding: utf-8 -*-
-
-# %%
-import pickle
-from collections import Counter
-
-import keras.backend as K
-import numpy as np
-import numpy.random as rand
-from keras.layers import (LSTM, Bidirectional, Conv1D, Dense, Embedding, Input,
-                          Lambda, Layer, RepeatVector, Reshape,
-                          TimeDistributed)
-from keras.layers import concatenate as Concat
-from keras.losses import categorical_crossentropy, mean_squared_error
-from keras.metrics import categorical_accuracy, mean_absolute_error
-from keras.models import Model, load_model
-from keras.utils import plot_model, to_categorical
-
-# %%
+from keras.layers import LSTM, Conv1D, Input
+from keras.losses import mean_squared_error
+from keras.models import Model
 
 
 class MelodyEncoder(Model):

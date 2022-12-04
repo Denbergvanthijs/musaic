@@ -1,9 +1,6 @@
-# -*- coding: utf-8 -*-
-
 import os
 import pickle
 import random
-from copy import deepcopy
 from fractions import Fraction
 from itertools import tee
 
@@ -40,8 +37,7 @@ class DataGenerator:
         if self.to_list:
             self.raw_songs = []
 
-
-#        print("LOADING FILES AS" + repr(self))
+        # print("LOADING FILES AS" + repr(self))
         for f in files:
             with open(self.path + "/" + f, "rb") as handle:
                 songs = pickle.load(handle)
@@ -88,7 +84,7 @@ class DataGenerator:
         for k in meta_keys:
             if k == "ts":
                 frac = Fraction(metaData[k], _normalize=False)
-                #values.extend([frac.numerator, frac.denominator])
+                # values.extend([frac.numerator, frac.denominator])
                 values[i: i + 2] = [frac.numerator, frac.denominator]
                 i += 2
             else:
@@ -170,7 +166,7 @@ class RhythmGenerator(DataGenerator):
 
         for instrument_ls in song_iter:
             cur_i = next(rand_stream)
-#            print("rhythm rand ind = ", cur_i)
+            # print("rhythm rand ind = ", cur_i)
             cur_lead, _ = instrument_ls[cur_i]
             lead_labeled, _ = self.prepare_piece(cur_lead,
                                                  context_size)
@@ -210,10 +206,10 @@ class MelodyGenerator(DataGenerator):
                          save_conversion_params=save_conversion_params,
                          to_list=to_list, meta_prep_f=meta_prep_f)
 
-#        song_iter = self.get_notevalues_together(with_metaData=False)
-#        self.V = len(set(n for instruments in song_iter
-#                         for melodies in instruments
-#                         for bar in melodies for n in bar))
+        # song_iter = self.get_notevalues_together(with_metaData=False)
+        # self.V = len(set(n for instruments in song_iter
+        #                     for melodies in instruments
+        #                     for bar in melodies for n in bar))
         self.V = 25
         self.null_elem = 0
 
@@ -244,7 +240,7 @@ class MelodyGenerator(DataGenerator):
 
         for instrument_ls in song_iter:
             cur_i = next(rand_stream)
-#            print("melody rand ind = ", cur_i)
+            # print("melody rand ind = ", cur_i)
             cur_lead, _ = instrument_ls[cur_i]
             lead_mat, _ = self.prepare_piece(cur_lead, instrument_ls,
                                              context_size)
@@ -327,19 +323,19 @@ class CombinedGenerator(DataGenerator):
         self.rhythm_V = self.rhythm_gen.V
         self.melody_V = self.melody_gen.V
 
-#    def random_stream(self):
-#        rhythm_ls = map(len,
-#                         self.rhythm_gen.get_rhythms_together(with_metaData=False))
-#        melody_ls = map(len,
-#                         self.melody_gen.get_notevalues_together(with_metaData=False))
-#
-#        for rl, ml in zip(rhythm_ls, melody_ls):
-#            if not rl == ml:
-#                raise ValueError("CombinedGenerator.random_stream:\n" +
-#                                 "number of instruments in rhythm unequal " +
-#                                 "number of instruments in melody!")
-#
-#            yield rand.randint(rl)
+    # def random_stream(self):
+    #     rhythm_ls = map(len,
+    #                     self.rhythm_gen.get_rhythms_together(with_metaData=False))
+    #     melody_ls = map(len,
+    #                     self.melody_gen.get_notevalues_together(with_metaData=False))
+
+    #     for rl, ml in zip(rhythm_ls, melody_ls):
+    #         if not rl == ml:
+    #             raise ValueError("CombinedGenerator.random_stream:\n" +
+    #                              "number of instruments in rhythm unequal " +
+    #                              "number of instruments in melody!")
+
+    #         yield rand.randint(rl)
 
     def generate_data(self, rhythm_context_size=1, melody_context_size=1,
                       random_stream=None, with_metaData=True):
