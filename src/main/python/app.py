@@ -1,5 +1,3 @@
-#pylint: disable=invalid-name,missing-docstring
-
 import json
 import multiprocessing
 import threading
@@ -13,8 +11,8 @@ except ImportError:
     HAS_JACK = False
 
 import mido
-from core import DEFAULT_SECTION_PARAMS, Instrument
-from mido import Message, MetaMessage, MidiFile, MidiTrack
+from core import Instrument
+from mido import MetaMessage, MidiFile, MidiTrack
 from network import NetworkEngine
 from pythonosc import udp_client
 
@@ -42,7 +40,7 @@ class MediaPlayer(threading.Thread):
         self.clockVar = clockVar
 
         # {barNum: {tick: [('/addr', (args))]}}
-        #self.messages = dict()
+        # self.messages = dict()
         self.instrumentMessages = dict()
         self.instrumentChannels = dict()
         self.instrumentOctave = dict()
@@ -727,5 +725,3 @@ class Engine(threading.Thread):
         mid.save(fp)
 
         print('[Engine]', 'done')
-
-# EOF

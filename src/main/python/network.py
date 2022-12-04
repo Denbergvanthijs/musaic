@@ -1,6 +1,3 @@
-
-#pylint: disable=invalid-name,missing-docstring
-
 import multiprocessing
 import os
 import pickle as pkl
@@ -198,7 +195,7 @@ class NeuralNet():
                 rhythmContexts[i, :, :] = r
                 melodyContexts[:, i, :] = m
 
-        #print('[NeuralNet]', 'Contexts:', rhythmContexts, melodyContexts)
+        # print('[NeuralNet]', 'Contexts:', rhythmContexts, melodyContexts)
 
         return rhythmContexts, melodyContexts
 
@@ -222,7 +219,7 @@ class NeuralNet():
         else:
             chord_num = int(chord_mode)
 
-        #print('[NeuralNet]', 'sampleOutput', 'chord_mode', chord_mode, 'chord_num', chord_num)
+        # print('[NeuralNet]', 'sampleOutput', 'chord_mode', chord_mode, 'chord_num', chord_num)
 
         if mode == 'argmax' or mode == 'best':
             sampledRhythm = np.argmax(output[0], axis=-1)
@@ -261,7 +258,7 @@ class NeuralNet():
                                                       replace=True, size=chord_num)))
             sampledMelody = np.array([m])
 
-        #print('[NeuralNet]', sampledRhythm.shape, sampledMelody.shape)
+        # print('[NeuralNet]', sampledRhythm.shape, sampledMelody.shape)
         return sampledRhythm, sampledMelody, sampledChords
 
     def convertBarToContext(self, measure):
@@ -357,7 +354,7 @@ class NeuralNet():
         if chord_mode not in {'force', 'auto'}:
             chord_mode = int(chord_mode)
 
-        #print('[NeuralNet]', 'convertContextToNotes', 'chord_mode', chord_mode)
+        # print('[NeuralNet]', 'convertContextToNotes', 'chord_mode', chord_mode)
         sample_mode = kwargs.get('sample_mode', 'top')
 
         for i, beat in enumerate(rhythmContext):
@@ -418,14 +415,14 @@ class NetworkEngine(multiprocessing.Process):
         while not self.stopRequest.is_set():
             try:
                 requestMsg = self.requestQueue.get(timeout=1)
-                #print('[NetworkEngine]', 'request recieved from', requestMsg['measure_address'])
+                # print('[NetworkEngine]', 'request recieved from', requestMsg['measure_address'])
             except multiprocessing.queues.Empty:
-                #print('no messages recieved yet')
+                # print('no messages recieved yet')
                 continue
 
-            #print('generating result...')
+            # print('generating result...')
             result = self.network.generateBar(**requestMsg['request'])
-            #print('generated result')
+            # print('generated result')
 
             self.returnQueue.put({'measure_address': requestMsg['measure_address'],
                                   'result': result})
@@ -438,6 +435,3 @@ class NetworkEngine(multiprocessing.Process):
     def join(self, timeout=1):
         self.stopRequest.set()
         super(NetworkEngine, self).join(timeout)
-
-
-# EOF

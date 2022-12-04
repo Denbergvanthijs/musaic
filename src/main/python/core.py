@@ -1,12 +1,8 @@
-
-#pylint: disable=invalid-name,missing-docstring
-
 import json
 from collections import defaultdict
 from copy import deepcopy
 from random import randint
 
-from mido import MidiFile
 from mido.frozen import FrozenMessage
 
 DEFAULT_META_DATA = {

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import os
 import random
 import time
@@ -7,7 +5,6 @@ from itertools import product
 
 from app import Engine
 from core import DEFAULT_AI_PARAMS, DEFAULT_META_DATA, DEFAULT_SECTION_PARAMS
-from tqdm.auto import tqdm
 
 '''
  == Batch Generator of Songs ==
@@ -24,7 +21,7 @@ from tqdm.auto import tqdm
 N = 10
 V = 20
 
-ROOT_PATH = os.path.expanduser('~/Projects/new_melodies')
+ROOT_PATH = os.path.expanduser("./generated/")
 
 PARAMETER_RANGES = {
     'length': [2, 4, 8],
@@ -80,13 +77,13 @@ if __name__ == '__main__':
     counter = 0
     for l, lal, sm, cm, ip in product(*PARAMETER_RANGES.values()):
 
-        #print(l, 16//l, lal, sm, ip)
+        # print(l, 16//l, lal, sm, ip)
         params = {**DEFAULT_SECTION_PARAMS, **DEFAULT_AI_PARAMS}
         params['loop_num'] = 8 // l
         params['length'] = l
         params['sample_mode'] = sm
         params['loop_alt_len'] = lal
-        #params['lead'] = bass.id_
+        # params['lead'] = bass.id_
         params['chord_mode'] = cm
         params['octave'] = 4
 
@@ -94,7 +91,7 @@ if __name__ == '__main__':
         # print(params)
 
         for _ in range(N):
-            #bass_md = {**DEFAULT_META_DATA}
+            # bass_md = {**DEFAULT_META_DATA}
             # for k, r in META_DATA_RANGES.items():
             #    bass_md[k] = random.uniform(r[0], r[1])
             # bass_sec.changeParameter(meta_data=bass_md)
