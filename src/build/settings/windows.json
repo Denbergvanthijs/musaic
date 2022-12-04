@@ -1,4 +1,6 @@
-
 {
-    "hidden_imports": ["pywin32", "numpy.core._dtype_ctypes"]
+    "hidden_imports": [
+        "pywin32",
+        "numpy.core._dtype_ctypes"
+    ]
 }
