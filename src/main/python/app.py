@@ -1,9 +1,9 @@
 #pylint: disable=invalid-name,missing-docstring
 
-import time
 import json
-import threading
 import multiprocessing
+import threading
+import time
 from collections import defaultdict
 
 try:
@@ -12,12 +12,11 @@ try:
 except ImportError:
     HAS_JACK = False
 
-from pythonosc import udp_client
 import mido
-from mido import Message, MidiFile, MidiTrack, MetaMessage
-
-from core import Instrument, DEFAULT_SECTION_PARAMS
+from core import DEFAULT_SECTION_PARAMS, Instrument
+from mido import Message, MetaMessage, MidiFile, MidiTrack
 from network import NetworkEngine
+from pythonosc import udp_client
 
 APP_NAME = "musAIc (v0.9.0.)"
 
@@ -33,7 +32,7 @@ def convertMidiToOsc(msg):
 
 
 class MediaPlayer(threading.Thread):
-#class MediaPlayer(multiprocessing.Process):
+    # class MediaPlayer(multiprocessing.Process):
     '''Server that plays tracks, either MIDI or OSC type.'''
 
     def __init__(self, msgQueue, clockVar):
@@ -81,7 +80,6 @@ class MediaPlayer(threading.Thread):
                 print('[MediaPlayer]', 'failed to create JACK client')
                 self.jack = False
 
-
     def run(self):
         while not self.stopRequest.is_set():
 
@@ -92,7 +90,7 @@ class MediaPlayer(threading.Thread):
                 # --- Before measure starts
                 print('[MediaPlayer]', 'Bar', self.clockVar[0], self.port)
 
-                tickTime = (60/self.bpm)/24
+                tickTime = (60 / self.bpm) / 24
 
                 # measures = (instrumentID, {tick: [midiMessages]})
                 # for each instrument at current bar number
@@ -116,14 +114,14 @@ class MediaPlayer(threading.Thread):
                     for measure in measures:
                         id_ = measure[0]
                         for msg in measure[1].get(tick, []):
-                            nn = msg.note + (12*self.instrumentOctave[measure[0]]) + self.globalTranspose
+                            nn = msg.note + (12 * self.instrumentOctave[measure[0]]) + self.globalTranspose
                             print(nn, msg)
                             self.sendOut(msg.copy(note=nn))
 
                     if self.stopRequest.is_set():
                         return
 
-                    nextTime = clockOn + (tick+1)*tickTime
+                    nextTime = clockOn + (tick + 1) * tickTime
                     time.sleep(max(0, nextTime - time.time()))
 
                 # --- After measure
@@ -159,7 +157,6 @@ class MediaPlayer(threading.Thread):
 
             else:
                 time.sleep(0.1)
-
 
     def join(self, timeout=None):
         self.stopRequest.set()
@@ -293,8 +290,7 @@ class MediaPlayer(threading.Thread):
         if not self.midi or not self.port or not self.sendMidiClock:
             return
 
-        self.port.send(mido.Message('songpos', pos=int(16*n*4)))
-
+        self.port.send(mido.Message('songpos', pos=int(16 * n * 4)))
 
     def setStop(self):
         self.playing.clear()
@@ -304,7 +300,7 @@ class MediaPlayer(threading.Thread):
     def allOff(self):
         if self.client and self.osc:
             self.client.send_message('/panic', 0)
-        #if self.port:
+        # if self.port:
         #    self.port.panic() # doesn't work??
 
         for chan in self.noteOns.keys():
@@ -371,7 +367,7 @@ class Engine(threading.Thread):
         self.status = STOPPED
         self.stopRequest = multiprocessing.Event()
 
-        #mido.set_backend('mido.backends.pygame')
+        # mido.set_backend('mido.backends.pygame')
         mido.set_backend('mido.backends.rtmidi')
 
         self.player.start()
@@ -382,7 +378,7 @@ class Engine(threading.Thread):
             self.checkSendMessages()
             self.checkReturnedMessages()
 
-            time.sleep(1/30)
+            time.sleep(1 / 30)
 
     def call(self, event, *args):
         for func in self.callbacks[event]:
@@ -411,7 +407,7 @@ class Engine(threading.Thread):
         try:
             result = self.netReturnQueue.get(False)
             #print('[Engine]', 'recieved result for measure', result['measure_address'], ':')
-            #print(result['result'])
+            # print(result['result'])
             self.getMeasure(*result['measure_address']).setNotes(result['result'])
 
         except multiprocessing.queues.Empty:
@@ -550,11 +546,11 @@ class Engine(threading.Thread):
         else:
             name = kwargs.get('name', 'INS ' + str(id_))
 
-        instrument = Instrument(id_, name, id_+1, self)
+        instrument = Instrument(id_, name, id_ + 1, self)
 
         instrument.track.addCallback(lambda x: self.sendInstrumentEvents(id_))
         self.instruments[id_] = instrument
-        self.changeChannel(id_, id_+1)
+        self.changeChannel(id_, id_ + 1)
         self.changeOctaveTranspose(id_)
         self.changeMute(id_)
 
@@ -570,7 +566,7 @@ class Engine(threading.Thread):
             print('[Engine]', 'cannot find instrument', instrumentID)
             if isinstance(n, int):
                 return None
-            return [None]*len(n)
+            return [None] * len(n)
 
     def getMeasure(self, instrumentID, sectionID, measureID):
         try:
@@ -708,7 +704,7 @@ class Engine(threading.Thread):
                     continue
                 for t, e in m.getMidiEvents().items():
                     for msg in e:
-                        events.append((n*96+t, msg))
+                        events.append((n * 96 + t, msg))
 
             # sort by time, then note off events
             events.sort(key=lambda x: (x[0], x[1].type))
@@ -717,12 +713,12 @@ class Engine(threading.Thread):
             for i, e in enumerate(events):
                 msg = e[1]
                 if i > 0:
-                    t = e[0] - events[i-1][0]
+                    t = e[0] - events[i - 1][0]
                 else:
                     t = e[0]
 
                 #print(msg, t)
-                nn = msg.note + 12*self.instrumentOctave[instrument.id_] + self.global_transpose
+                nn = msg.note + 12 * self.instrumentOctave[instrument.id_] + self.global_transpose
                 track.append(msg.copy(time=t, note=nn))
 
             track.append(MetaMessage('end_of_track'))

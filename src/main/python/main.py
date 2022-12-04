@@ -1,12 +1,10 @@
 import multiprocessing
 
+from app import Engine
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
+from gui.elements import InstrumentPanel, SectionView, TimeView, TrackPanel
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
-
-from gui.elements import InstrumentPanel, TrackPanel, TimeView, SectionView
-from app import Engine
-
 
 APP_NAME = "musAIc v0.9.1"
 
@@ -35,7 +33,7 @@ class ClientOptions(QtWidgets.QDialog):
 
         self._addr = QtWidgets.QLineEdit(str(self._engine.oscOptions['addr']))
         self._addr.setInputMask('000.000.000.000')
-        self._port = QtWidgets.QSpinBox()# str(self._engine.clientOptions['port']))
+        self._port = QtWidgets.QSpinBox()  # str(self._engine.clientOptions['port']))
         self._port.setRange(1024, 65535)
         self._port.setValue(self._engine.oscOptions['port'])
         self._osc_clock = QtWidgets.QCheckBox()
@@ -186,7 +184,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._instrument_scroll_layout = QtWidgets.QVBoxLayout()
         self._instrument_scroll_layout.setSpacing(0)
         self._instrument_scroll_layout.setContentsMargins(0, 0, 0, 0)
-        #self._instrument_scroll_layout
+        # self._instrument_scroll_layout
         instrument_panel_widget.setLayout(self._instrument_scroll_layout)
         instrument_scroll_panel.setWidget(instrument_panel_widget)
 
@@ -283,7 +281,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self._track_view.addInstrument(instrument)
         self._track_view.buildSections(instrument.id_)
 
-
     def deleteInstrument(self, instrumentID):
         raise NotImplementedError
 
@@ -301,7 +298,7 @@ class MainWindow(QtWidgets.QMainWindow):
             bar_num, tick = self.engine.getTime()
             self._track_view.updateCursor(bar_num, tick)
         finally:
-            QtCore.QTimer.singleShot(1000/20, self.updateCursor)
+            QtCore.QTimer.singleShot(1000 / 20, self.updateCursor)
 
     def load(self):
         print('[MainWindow]', 'Loading...')
@@ -309,7 +306,7 @@ class MainWindow(QtWidgets.QMainWindow):
                                                           filter='musAIc (*.mus)')
         print(file_name)
         if file_name[0] == '':
-           return
+            return
 
         # first delete everything...
         self._track_view.reset()
@@ -327,7 +324,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.engine.loadFile(file_name[0])
 
         # rebuild GUI...
-        #for instrument in self.engine.instruments.values():
+        # for instrument in self.engine.instruments.values():
         #    print(instrument.id_, instrument.sections, instrument.chan)
         #    panel = InstrumentPanel(instrument, self.engine, self._track_view)
         #    panel.setFixedHeight(INS_PANEL_HEIGHT)

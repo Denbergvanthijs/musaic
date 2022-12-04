@@ -1,21 +1,19 @@
+from collections import defaultdict
+from colorsys import hsv_to_rgb
 from copy import deepcopy
 from random import randint
-from collections import defaultdict
 
-from colorsys import hsv_to_rgb
-
+from core import DEFAULT_AI_PARAMS, DEFAULT_META_DATA, DEFAULT_SECTION_PARAMS
+from gui.sliders import BoxRangeSlider, BoxSlider, Knob
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
-
-from core import DEFAULT_META_DATA, DEFAULT_SECTION_PARAMS, DEFAULT_AI_PARAMS
-from gui.sliders import BoxRangeSlider, BoxSlider, Knob
-
 
 DEFAULT_BAR_WIDTH = 80
 
 
 class TimeView(QtWidgets.QGraphicsView):
     '''TimeLine bar'''
+
     def __init__(self, engine, scroll_bar, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._engine = engine
@@ -46,8 +44,8 @@ class TimeView(QtWidgets.QGraphicsView):
             # dragging...
             start = min(self._mouseStartX, mouseEndX)
             end = max(self._mouseStartX, mouseEndX)
-            self._start_bar_num = int(start//bar_width)
-            self._end_bar_num = 1 + int(end//bar_width)
+            self._start_bar_num = int(start // bar_width)
+            self._end_bar_num = 1 + int(end // bar_width)
             self.scene().parent().updateLoopBounds({'start': self._start_bar_num, 'end': self._end_bar_num})
             self.scene().update()
             self.update()
@@ -63,7 +61,7 @@ class TimeView(QtWidgets.QGraphicsView):
             self._engine.setLoopBounds(self._start_bar_num, self._end_bar_num)
             self._mouseStartX = None
         else:
-            bar_num = int(mouseEndX//bar_width)
+            bar_num = int(mouseEndX // bar_width)
             self._engine.setBarNumber(bar_num)
 
     def wheelEvent(self, e):
@@ -80,6 +78,7 @@ class TimeView(QtWidgets.QGraphicsView):
 
 class TrackScene(QtWidgets.QGraphicsScene):
     '''QGraphicsScene holding section boxes, loop bounds, grid pattern'''
+
     def __init__(self, engine, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._engine = engine
@@ -101,8 +100,8 @@ class TrackScene(QtWidgets.QGraphicsScene):
 
         width = max(painter.device().width(), scene_rect.width())
         height = scene_rect.height()
-        num_bars = width//bar_width + 1
-        num_ins = height//instrument_height + 1
+        num_bars = width // bar_width + 1
+        num_ins = height // instrument_height + 1
 
         # draw loop bounds...
         brush = QtGui.QBrush()
@@ -112,12 +111,12 @@ class TrackScene(QtWidgets.QGraphicsScene):
         if loop['loop']:
             brush.setColor(QtGui.QColor('#202025'))
         else:
-            #brush.setStyle(Qt.Dense2Pattern)
+            # brush.setStyle(Qt.Dense2Pattern)
             brush.setColor(QtGui.QColor('#1B1B1B'))
 
         start = loop['start'] * bar_width
         loop_width = (loop['end'] - loop['start']) * bar_width
-        bounds_rect = QtCore.QRect(start, -20, loop_width, rect.bottom()+20)
+        bounds_rect = QtCore.QRect(start, -20, loop_width, rect.bottom() + 20)
         painter.fillRect(bounds_rect, brush)
 
         # draw vertical lines...
@@ -132,11 +131,11 @@ class TrackScene(QtWidgets.QGraphicsScene):
 
         lines = []
         for i in range(0, int(num_bars), skip):
-            x = i*bar_width
+            x = i * bar_width
             if x >= rect.left() and x <= rect.right():
                 lines.append(QtCore.QLineF(x, rect.top(), x, rect.bottom()))
                 #painter.drawLine(x, rect.top(), x, rect.bottom())
-            painter.drawText(i*bar_width + 5, -10, str(i+1))
+            painter.drawText(i * bar_width + 5, -10, str(i + 1))
 
         painter.drawLines(lines)
 
@@ -145,7 +144,7 @@ class TrackScene(QtWidgets.QGraphicsScene):
         painter.setPen(line_pen)
 
         for j in range(int(num_ins)):
-            y = j*instrument_height
+            y = j * instrument_height
             if y > rect.top() and y <= rect.bottom():
                 painter.drawLine(rect.left(), y, rect.right(), y)
 
@@ -175,12 +174,12 @@ class TrackPanel(QtWidgets.QWidget):
         self._track_view = QtWidgets.QGraphicsView(self._track_scene)
         self._track_view.setAlignment(Qt.AlignTop | Qt.AlignLeft)
         self._track_view.setViewportUpdateMode(QtWidgets.QGraphicsView.BoundingRectViewportUpdate)
-        #self._track_view.setViewportUpdateMode(QtWidgets.QGraphicsView.SmartViewportUpdate)
+        # self._track_view.setViewportUpdateMode(QtWidgets.QGraphicsView.SmartViewportUpdate)
         self._track_view.setMinimumWidth(1000)
         layout.addWidget(self._track_view)
 
         self._timeline_view.setScene(self._track_scene)
-        timeline_rect = QtCore.QRectF(0, -timeline_height, 1000, timeline_height-2)
+        timeline_rect = QtCore.QRectF(0, -timeline_height, 1000, timeline_height - 2)
         self._timeline_view.setSceneRect(timeline_rect)
         self._timeline_view.setAlignment(Qt.AlignTop | Qt.AlignLeft)
         self._timeline_view.setViewportUpdateMode(QtWidgets.QGraphicsView.SmartViewportUpdate)
@@ -190,7 +189,7 @@ class TrackPanel(QtWidgets.QWidget):
         self._track_cursor = self._track_scene.addLine(cursor, cursor_pen)
         self._track_cursor.setZValue(10)
 
-        loop_bounds = QtCore.QRectF(0.0, -self._timeline_height, self._timeline_height, self._bar_width*4)
+        loop_bounds = QtCore.QRectF(0.0, -self._timeline_height, self._timeline_height, self._bar_width * 4)
         loop_bounds_brush = QtGui.QBrush(QtGui.QColor('yellow'))
         self._loop_bounds = self._track_scene.addRect(loop_bounds, brush=loop_bounds_brush)
         self.updateLoopBounds()
@@ -263,7 +262,7 @@ class TrackPanel(QtWidgets.QWidget):
 
     def updateCursor(self, bar_num, tick):
         #print('[TrackView]', 'updateCursor', bar_num, tick)
-        x = (bar_num + tick/96) * self._bar_width
+        x = (bar_num + tick / 96) * self._bar_width
         self._track_cursor.setPos(int(x), -self._timeline_height)
         self._track_view.update()
 
@@ -301,7 +300,7 @@ class TrackPanel(QtWidgets.QWidget):
         x *= self._bar_width
         x = max(x, 1000)
         y = len(self._instruments.values()) * self._instrument_panel_height
-        self._track_cursor.setLine(0.0, -self._timeline_height, 0.0, y+self._timeline_height)
+        self._track_cursor.setLine(0.0, -self._timeline_height, 0.0, y + self._timeline_height)
         return QtCore.QRectF(0, 0, x, y)
 
     def getBarWidth(self):
@@ -320,18 +319,18 @@ class TrackPanel(QtWidgets.QWidget):
                 x = section_box.bar_num * self._bar_width
                 y = self._instrument_panel_height * id_
                 section_box.setPos(x, y)
-            #self.buildSections(id_)
+            # self.buildSections(id_)
 
         self.updateRects()
         self._track_scene.update()
 
     def zoom(self, factor, x_before):
         #self._track_view.centerOn(where/self._bar_width, 0)
-        t = x_before/self._bar_width
+        t = x_before / self._bar_width
         if factor > 0:
-            self.setBarWidth(self._bar_width+2)
+            self.setBarWidth(self._bar_width + 2)
         elif factor < 0:
-            self.setBarWidth(self._bar_width-2)
+            self.setBarWidth(self._bar_width - 2)
 
         x_after = t * self._bar_width
 
@@ -371,6 +370,7 @@ class TrackPanel(QtWidgets.QWidget):
 
 class SectionBox(QtWidgets.QGraphicsItem):
     ''' A canvas of drawn notes '''
+
     def __init__(self, block, instrument, track_view, bar_num, height=80, *args, **kwargs):
         super(QtWidgets.QGraphicsItem, self).__init__(*args, **kwargs)
 
@@ -394,7 +394,7 @@ class SectionBox(QtWidgets.QGraphicsItem):
         hex_color = f'#{hex(int(r*255))[2:]}{hex(int(g*255))[2:]}{hex(int(b*255))[2:]}'
         self._section_color = QtGui.QColor(hex_color)
 
-        self._rect = QtCore.QRectF(0, 0, len(self.section)*self._bar_width, height)
+        self._rect = QtCore.QRectF(0, 0, len(self.section) * self._bar_width, height)
         self._backgroud_color = QtGui.QColor('#222222')
         self._repeat_background_color = QtGui.QColor('#101010')
         self._main_note_color = QtGui.QColor('#aaaaaa')
@@ -413,7 +413,7 @@ class SectionBox(QtWidgets.QGraphicsItem):
         self.update(self._rect)
 
     def paint(self, painter, *args, **kwargs):
-        self._rect = QtCore.QRectF(0, 0, len(self.section)*self._bar_width, self._height)
+        self._rect = QtCore.QRectF(0, 0, len(self.section) * self._bar_width, self._height)
 
         #self._bar_width = self._track_view.getBarWidth()
         brush = QtGui.QBrush()
@@ -440,24 +440,24 @@ class SectionBox(QtWidgets.QGraphicsItem):
         brush.setColor(self._backgroud_color)
         brush.setStyle(Qt.SolidPattern)
         painter.setPen(Qt.NoPen)
-        painter.fillRect(QtCore.QRect(0, 15, width, height-15), brush)
+        painter.fillRect(QtCore.QRect(0, 15, width, height - 15), brush)
 
         pen.setColor(QtGui.QColor("black"))
         pen.setCapStyle(Qt.FlatCap)
         pen.setWidth(1)
         painter.setPen(pen)
-        if len(self.section.name)*5 < len(self.section)*self._bar_width :
+        if len(self.section.name) * 5 < len(self.section) * self._bar_width:
             painter.drawText(10, 13, self.section.name)
 
         # draw bar lines...
         for i in range(0, len(self.section)):
-            x = i*self._bar_width
-            if i%self.section.params['length'] == 0 and self.section.params['loop_num'] > 1:
+            x = i * self._bar_width
+            if i % self.section.params['length'] == 0 and self.section.params['loop_num'] > 1:
                 painter.drawLine(x, 0, x, height)
-            elif self.section.type_ == 'ai' and (i+self.section.params['loop_alt_len']) % self.section.params['length'] == 0 \
-                 and self.section.params['loop_num'] > 1:
+            elif self.section.type_ == 'ai' and (i + self.section.params['loop_alt_len']) % self.section.params['length'] == 0 \
+                    and self.section.params['loop_num'] > 1:
                 painter.drawLine(x, 5, x, height)
-                painter.drawLine(x, 5, x+self.section.params['loop_alt_len']*self._bar_width, 5)
+                painter.drawLine(x, 5, x + self.section.params['loop_alt_len'] * self._bar_width, 5)
             elif self._bar_width > 40:
                 pen.setColor(QtGui.QColor('#303030'))
                 painter.setPen(pen)
@@ -477,20 +477,20 @@ class SectionBox(QtWidgets.QGraphicsItem):
             if self._bar_width > 10:
                 if not measure or (measure.isEmpty() and not measure.genRequestSent):
                     # draw red x...
-                    painter.drawText(self._bar_width*i+5, 25, "X")
+                    painter.drawText(self._bar_width * i + 5, 25, "X")
                     continue
 
                 if measure.genRequestSent:
-                    painter.drawText(self._bar_width*i+5, 25, "O")
+                    painter.drawText(self._bar_width * i + 5, 25, "O")
                     continue
 
             for j, note in enumerate(measure.getNotes()):
                 y = height - note[0] + 20
-                x1 = self._bar_width * (i + note[1]/96)
-                x2 = self._bar_width * (i + note[2]/96) - 1
+                x1 = self._bar_width * (i + note[1] / 96)
+                x2 = self._bar_width * (i + note[2] / 96) - 1
 
                 # for small scales, only draw every second note
-                if (x2-x1 > 0) and (x2-x1 > 2 or j%2==0):
+                if (x2 - x1 > 0) and (x2 - x1 > 2 or j % 2 == 0):
                     lines.append(QtCore.QLineF(x1, y, x2, y))
 
         painter.drawLines(lines)
@@ -504,7 +504,7 @@ class SectionBox(QtWidgets.QGraphicsItem):
     def mouseMoveEvent(self, e):
         #print('[SectionBox]', 'mouseMoveEvent', e)
         self._dragged = True
-        #self._track_view.ensureVisible(self)
+        # self._track_view.ensureVisible(self)
         super().mouseMoveEvent(e)
 
     def mouseReleaseEvent(self, e):
@@ -515,7 +515,7 @@ class SectionBox(QtWidgets.QGraphicsItem):
 
             self._track_view.rebuildTrack(self.instrument.id_)
             #self.instrument.track.moveSectionTo(self.section.id_, bar)
-        #self._track_view.ensureVisible(self)
+        # self._track_view.ensureVisible(self)
         super().mouseReleaseEvent(e)
 
     def getSectionColor(self):
@@ -524,11 +524,11 @@ class SectionBox(QtWidgets.QGraphicsItem):
     def itemChange(self, constant, value):
         #print('[SectionBox]', 'itemChange()', constant, value)
         if constant == QtWidgets.QGraphicsItem.ItemPositionChange:
-            new_x = round(value.x()/self._bar_width)*self._bar_width
+            new_x = round(value.x() / self._bar_width) * self._bar_width
             new_x = max(0, new_x)
             value = QtCore.QPointF(new_x, self._y)
             #vis_rect = QtCore.QRectF(new_x, self._y, self._bar_width+10, 10)
-            #self._track_view.ensureVisible(vis_rect)
+            # self._track_view.ensureVisible(vis_rect)
             return value
         return super().itemChange(constant, value)
 
@@ -550,7 +550,7 @@ class SectionParameters(QtWidgets.QFrame):
         sp = QtWidgets.QSizePolicy()
         sp.setRetainSizeWhenHidden(True)
         sp.setHorizontalStretch(2)
-        #sp.setHorizontalPolicy(QtWidgets.QSizePolicy.MinimumExpanding)
+        # sp.setHorizontalPolicy(QtWidgets.QSizePolicy.MinimumExpanding)
 
         self.parameters = dict()
 
@@ -724,14 +724,16 @@ class SectionParameters(QtWidgets.QFrame):
 
         self.parameters['sample_mode'] = QtWidgets.QComboBox()
         self.parameters['sample_mode'].addItems(['best', 'top', 'dist'])
-        self.parameters['sample_mode'].setToolTip("Either take the most likely ('best'), from the top 5 best ('top'), or draw from the full distribution of possible notes and rhythms ('dist')")
+        self.parameters['sample_mode'].setToolTip(
+            "Either take the most likely ('best'), from the top 5 best ('top'), or draw from the full distribution of possible notes and rhythms ('dist')")
         self.parameters['sample_mode'].setCurrentText('dist')
         self.parameters['sample_mode'].currentIndexChanged.connect(self.parameterChanged)
         sample_layout.addWidget(self.parameters['sample_mode'])
 
         self.parameters['chord_mode'] = QtWidgets.QComboBox()
         self.parameters['chord_mode'].addItems(['auto', 'force', '1', '2', '3', '4'])
-        self.parameters['chord_mode'].setToolTip("Chord mode: let AI 'auto' choose when to make chords, 'force' to make all chords, or a max number of notes to play at once")
+        self.parameters['chord_mode'].setToolTip(
+            "Chord mode: let AI 'auto' choose when to make chords, 'force' to make all chords, or a max number of notes to play at once")
         self.parameters['chord_mode'].setCurrentText('auto')
         self.parameters['chord_mode'].currentIndexChanged.connect(self.parameterChanged)
 
@@ -812,8 +814,8 @@ class SectionParameters(QtWidgets.QFrame):
 
     def randomMetaData(self):
         for k, v in self.meta_params.items():
-            pc = randint(0, 100)/100
-            v.value = v.minimum + pc*(v.maximum - v.minimum)
+            pc = randint(0, 100) / 100
+            v.value = v.minimum + pc * (v.maximum - v.minimum)
 
     def setTrackView(self, track_view):
         self._track_view = track_view
@@ -910,7 +912,7 @@ class SectionParameters(QtWidgets.QFrame):
             self.loop_alt_num.setVisible(False)
             self.loop_alt_len.setVisible(False)
 
-        self.loop_alt_len.setMaximum(self.length.value()-1)
+        self.loop_alt_len.setMaximum(self.length.value() - 1)
         self.loop_alt_num.setMaximum(max(2, self.loop_num.value()))
 
         if self.parameters['lead'].currentData() == -1:
@@ -981,6 +983,7 @@ class SectionParameters(QtWidgets.QFrame):
 
 class InstrumentPanel(QtWidgets.QFrame):
     ''' The controls for the instrument '''
+
     def __init__(self, instrument, engine, track_view, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -998,7 +1001,7 @@ class InstrumentPanel(QtWidgets.QFrame):
         control_layout.setContentsMargins(2, 2, 2, 2)
 
         self._instrument_name = self.instrument.name
-        #self._instrument_color = QtGui.QColor('#aa0000')
+        # self._instrument_color = QtGui.QColor('#aa0000')
         control_layout.addWidget(QtWidgets.QLabel(self._instrument_name), 0, 0)
 
         channel_select = QtWidgets.QSpinBox()

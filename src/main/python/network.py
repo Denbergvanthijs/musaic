@@ -1,18 +1,16 @@
 
 #pylint: disable=invalid-name,missing-docstring
 
-import os
-import time
-import random
 import multiprocessing
-from copy import deepcopy
-
+import os
 import pickle as pkl
+import random
+import time
+from copy import deepcopy
 
 import numpy as np
 import numpy.random as rand
-
-from core import DEFAULT_SECTION_PARAMS, DEFAULT_AI_PARAMS, DEFAULT_META_DATA
+from core import DEFAULT_AI_PARAMS, DEFAULT_META_DATA, DEFAULT_SECTION_PARAMS
 
 RANDOM = 0
 VER_9 = 1
@@ -22,9 +20,9 @@ PLAYER = 2
 
 if PLAYER != RANDOM:
     from v9.Nets.ChordNetwork import ChordNetwork
+    from v9.Nets.CombinedNetworkEuro import CombinedNetwork
     from v9.Nets.MetaEmbeddingEuro import MetaEmbedding
     from v9.Nets.MetaPredictorEuro import MetaPredictor
-    from v9.Nets.CombinedNetworkEuro import CombinedNetwork
 
 
 class RandomPlayer():
@@ -36,7 +34,7 @@ class RandomPlayer():
     def generateBar(self, **kwargs):
         notes = []
         for i in range(4):
-            note = (random.randint(60, 80), i*24, (i+1)*24)
+            note = (random.randint(60, 80), i * 24, (i + 1) * 24)
             notes.append(note)
 
         return notes
@@ -168,15 +166,15 @@ class NeuralNet():
             for rhythmType in injection_params[0]:
                 # *2 gives extra weight to non-empty beats
                 rhythmPool.extend({
-                    'qb': [self.rhythmDict[(0.0,)]]*2,
+                    'qb': [self.rhythmDict[(0.0,)]] * 2,
                     'lb': [self.rhythmDict[()]],
                     'eb': [self.rhythmDict[(0.0, 0.5)],
-                           self.rhythmDict[(0.5,)]]*2,
+                           self.rhythmDict[(0.5,)]] * 2,
                     'fb': [self.rhythmDict[(0.0, 0.25, 0.5, 0.75)],
                            self.rhythmDict[(0.0, 0.25, 0.5)],
-                           self.rhythmDict[(0.5, 0.75)]]*2,
+                           self.rhythmDict[(0.5, 0.75)]] * 2,
                     'tb': [self.rhythmDict[(0.0, 0.333, 0.6667)],
-                           self.rhythmDict[(0.3333, 0.6667)]]*2,
+                           self.rhythmDict[(0.3333, 0.6667)]] * 2,
                 }[rhythmType])
 
             rhythmContexts = [np.random.choice(rhythmPool, size=(1, 4)) for _ in range(4)]
@@ -188,7 +186,7 @@ class NeuralNet():
                 '5th': [1, 8]
             }[injection_params[1]]
             # if len(injection_params) > 2 and injection_params[2]:
-            melodyPool.extend([x+12 for x in melodyPool])
+            melodyPool.extend([x + 12 for x in melodyPool])
 
             melodyContexts = np.random.choice(melodyPool, size=(1, 4, 48))
 
@@ -281,7 +279,7 @@ class NeuralNet():
         # print(measure.notes)
 
         rhythm = []
-        melody = [-1]*48
+        melody = [-1] * 48
         pcs = []
 
         onTicks = [False] * 96
@@ -290,17 +288,17 @@ class NeuralNet():
                 if n[0] <= 0:
                     continue
                 onTicks[n[1]] = True
-                melody[n[1]//2] = n[0] % 12 + 1
-                pcs.append(n[0] % 12+1)
+                melody[n[1] // 2] = n[0] % 12 + 1
+                pcs.append(n[0] % 12 + 1)
             except IndexError:
                 pass
 
         for i in range(4):
-            beat = onTicks[i*24:(i+1)*24]
+            beat = onTicks[i * 24:(i + 1) * 24]
             word = []
             for j in range(24):
                 if beat[j]:
-                    word.append(round(j/24, 4))
+                    word.append(round(j / 24, 4))
             try:
                 rhythm.append(self.rhythmDict[tuple(word)])
             except KeyError:
@@ -320,7 +318,7 @@ class NeuralNet():
                               chordContexts, kwargs, octave=4):
 
         def makeNote(pc, startTick, endTick):
-            nn = 12*(octave+1) + pc - 1
+            nn = 12 * (octave + 1) + pc - 1
             note = (int(nn), startTick, endTick)
             return note
 
@@ -345,7 +343,7 @@ class NeuralNet():
             if chord_mode == 1:
                 intervals = [rand.choice(intervals)]
             for interval in intervals:
-                notes.append(makeNote(pc+interval-12, tick, endTick))
+                notes.append(makeNote(pc + interval - 12, tick, endTick))
 
             return notes
 
@@ -365,16 +363,16 @@ class NeuralNet():
         for i, beat in enumerate(rhythmContext):
             b = self.rhythmDict[beat]
             for onset in b:
-                onTicks[int((i+onset)*24)] = True
+                onTicks[int((i + onset) * 24)] = True
 
         startTicks = [i for i in range(96) if onTicks[i]]
 
         for i, tick in enumerate(startTicks):
             try:
-                endTick = startTicks[i+1]
+                endTick = startTicks[i + 1]
             except:
                 endTick = 96
-            pc = melodyContext[i//2]
+            pc = melodyContext[i // 2]
 
             if chord_mode == 'force':
                 tonic = 12 + (pc % 12)
@@ -387,7 +385,7 @@ class NeuralNet():
                     notes.append(makeNote(pc, tick, endTick))
 
             else:
-                for chord_pc in chordContexts[i//2]:
+                for chord_pc in chordContexts[i // 2]:
                     notes.append(makeNote(chord_pc, tick, endTick))
 
         return notes

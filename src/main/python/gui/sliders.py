@@ -3,6 +3,7 @@ import math
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt, QTimer
 
+
 class BoxSlider(QtWidgets.QFrame):
     valueChanged = QtCore.pyqtSignal(int)
 
@@ -30,7 +31,6 @@ class BoxSlider(QtWidgets.QFrame):
         self._value = 0
 
         self._show_text = True
-
 
     @property
     def value(self):
@@ -82,7 +82,7 @@ class BoxSlider(QtWidgets.QFrame):
 
         percent = (self.value - self.minimum) / (self.maximum - self.minimum)
 
-        rect = QtCore.QRect(0, 0, width*percent, height)
+        rect = QtCore.QRect(0, 0, width * percent, height)
         painter.fillRect(rect, brush)
 
         if self._text_color:
@@ -100,7 +100,7 @@ class BoxSlider(QtWidgets.QFrame):
         click_x = e.x()
         pc = click_x / width
 
-        value = int(vmin+pc*(vmax - vmin))
+        value = int(vmin + pc * (vmax - vmin))
         self.value = value
 
     def mouseMoveEvent(self, e):
@@ -203,7 +203,7 @@ class BoxRangeSlider(QtWidgets.QFrame):
         left_percent = (self.left - self.minimum) / (self.maximum - self.minimum)
         right_percent = (self.right - self.minimum) / (self.maximum - self.minimum)
 
-        rect = QtCore.QRect(width*left_percent, 0, width*(right_percent - left_percent), height)
+        rect = QtCore.QRect(width * left_percent, 0, width * (right_percent - left_percent), height)
         painter.fillRect(rect, brush)
 
         if self._text_color:
@@ -222,7 +222,7 @@ class BoxRangeSlider(QtWidgets.QFrame):
         pc = click_x / width
 
         mid = (self.left + self.right) / 2
-        value = int(vmin+pc*(vmax - vmin))
+        value = int(vmin + pc * (vmax - vmin))
 
         if value < mid:
             self.left = value
@@ -260,7 +260,6 @@ class Knob(QtWidgets.QWidget):
         self.value = minimum
 
         self._color = QtGui.QColor('#5A5A5A')
-
 
     @property
     def value(self):
@@ -301,19 +300,19 @@ class Knob(QtWidgets.QWidget):
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         rect = painter.device().rect()
 
-        radius = min(rect.width(), rect.height())/2
+        radius = min(rect.width(), rect.height()) / 2
 
         pc = (self.value - self.minimum) / (self.maximum - self.minimum)
 
-        a = 4.18879 - pc*5.23599
-        x = math.cos(a) * (radius-1) + radius
-        y = -math.sin(a) * (radius-1) + radius
+        a = 4.18879 - pc * 5.23599
+        x = math.cos(a) * (radius - 1) + radius
+        y = -math.sin(a) * (radius - 1) + radius
 
         pen = QtGui.QPen()
         pen.setWidth(2)
         pen.setColor(self._color)
         painter.setPen(pen)
-        painter.drawArc(1, 1, 2*radius-1, 2*radius-1, -120*16, -300*16)
+        painter.drawArc(1, 1, 2 * radius - 1, 2 * radius - 1, -120 * 16, -300 * 16)
         pen.setColor(QtGui.QColor('#DDDDDD'))
         painter.setPen(pen)
         painter.drawLine(radius, radius, x, y)
@@ -330,7 +329,7 @@ class Knob(QtWidgets.QWidget):
         dy = self._start_y - e.y()
         r = self.maximum - self.minimum
 
-        self.value = self._start_value + (dy*r)/self._sensitivity
+        self.value = self._start_value + (dy * r) / self._sensitivity
         self.update()
 
     def mouseReleaseEvent(self, e):
@@ -338,7 +337,7 @@ class Knob(QtWidgets.QWidget):
         self.value = self.value
 
     def wheelEvent(self, e):
-        change = (1 if e.angleDelta().y() > 0 else -1) * (self.maximum - self.minimum)/100
+        change = (1 if e.angleDelta().y() > 0 else -1) * (self.maximum - self.minimum) / 100
         self._emit = False
         self.value += change
         self._update_timer.start(100)
@@ -349,7 +348,6 @@ class Knob(QtWidgets.QWidget):
         '''When Knob movement has settled, update the value.'''
         self._emit = True
         self.value = self._value
-
 
 
 if __name__ == '__main__':
@@ -366,12 +364,12 @@ if __name__ == '__main__':
 
     slider = BoxSlider()
     slider.setRange(0, 200)
-    #layout.addWidget(slider)
+    # layout.addWidget(slider)
     slider.setValue(100)
 
     rangeSlider = BoxRangeSlider()
     rangeSlider.setRange(50, 150)
-    #layout.addWidget(rangeSlider)
+    # layout.addWidget(rangeSlider)
     rangeSlider.setValue((75, 100))
     rangeSlider.left = 60
 
@@ -383,4 +381,3 @@ if __name__ == '__main__':
     window.show()
 
     app.exec_()
-

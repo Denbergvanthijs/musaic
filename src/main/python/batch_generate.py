@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 
 import os
-import time
 import random
+import time
 from itertools import product
 
-from tqdm.auto import tqdm
-
 from app import Engine
-from core import DEFAULT_META_DATA, DEFAULT_SECTION_PARAMS, DEFAULT_AI_PARAMS
+from core import DEFAULT_AI_PARAMS, DEFAULT_META_DATA, DEFAULT_SECTION_PARAMS
+from tqdm.auto import tqdm
 
 '''
  == Batch Generator of Songs ==
@@ -45,7 +44,7 @@ META_DATA_RANGES = {
     'span': (1, 30),
     'jump': (0, 12),
     'cDens': (0, 1),
-    #'cDepth': (1, 5),
+    # 'cDepth': (1, 5),
     'tCent': (40, 80),
     'rDens': (0, 8),
     'pos': (0, 1)
@@ -56,8 +55,8 @@ if __name__ == '__main__':
     app = Engine()
     app.start()
 
-    ##while not app.networkEngine.isLoaded():
-    ##    time.sleep(0.01)
+    # while not app.networkEngine.isLoaded():
+    # time.sleep(0.01)
 
     time.sleep(10)
 
@@ -66,7 +65,7 @@ if __name__ == '__main__':
     lead = app.addInstrument(name='chords')
 
     print(' == Adding sections...')
-    #_, bass_sec = bass.newSection(chord_mode=1,
+    # _, bass_sec = bass.newSection(chord_mode=1,
     #                              octave=2,
     #                              transpose_octave=-1,
     #                              length=2,
@@ -83,7 +82,7 @@ if __name__ == '__main__':
 
         #print(l, 16//l, lal, sm, ip)
         params = {**DEFAULT_SECTION_PARAMS, **DEFAULT_AI_PARAMS}
-        params['loop_num'] = 8//l
+        params['loop_num'] = 8 // l
         params['length'] = l
         params['sample_mode'] = sm
         params['loop_alt_len'] = lal
@@ -92,13 +91,13 @@ if __name__ == '__main__':
         params['octave'] = 4
 
         lead_sec.changeParameter(**params)
-        #print(params)
+        # print(params)
 
         for _ in range(N):
             #bass_md = {**DEFAULT_META_DATA}
-            #for k, r in META_DATA_RANGES.items():
+            # for k, r in META_DATA_RANGES.items():
             #    bass_md[k] = random.uniform(r[0], r[1])
-            #bass_sec.changeParameter(meta_data=bass_md)
+            # bass_sec.changeParameter(meta_data=bass_md)
 
             lead_md = {**DEFAULT_META_DATA}
             for k, r in META_DATA_RANGES.items():
@@ -106,18 +105,18 @@ if __name__ == '__main__':
             lead_sec.changeParameter(meta_data=lead_md)
 
             # regenerate...
-            #bass.requestGenerateMeasures(gen_all=True)
+            # bass.requestGenerateMeasures(gen_all=True)
             lead.requestGenerateMeasures(gen_all=True)
             time.sleep(0.1)
 
-            #while not bass_sec.isGenerated() or not lead_sec.isGenerated():
+            # while not bass_sec.isGenerated() or not lead_sec.isGenerated():
             while not lead_sec.isGenerated():
                 time.sleep(0.1)
 
             app.exportMidiFile(os.path.abspath(os.path.join(ROOT_PATH, 'melody_{:04}.mid'.format(counter))), track_list=None)
-            #app.exportMidiFile(os.path.abspath(os.path.join(ROOT_PATH, 'bass/', 'bass_{:04}.mid'.format(counter))),
+            # app.exportMidiFile(os.path.abspath(os.path.join(ROOT_PATH, 'bass/', 'bass_{:04}.mid'.format(counter))),
             #                   track_list=[bass.id_])
-            #app.exportMidiFile(os.path.abspath(os.path.join(ROOT_PATH, 'chord/', 'chord_{:04}.mid'.format(counter))),
+            # app.exportMidiFile(os.path.abspath(os.path.join(ROOT_PATH, 'chord/', 'chord_{:04}.mid'.format(counter))),
             #                   track_list=[lead.id_])
 
             print(counter, 'songs generated')
