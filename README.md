@@ -26,19 +26,21 @@ It is recommended to use Python version 3.6.x since I have encountered issues wi
 
 1. Install `git` from [here](https://git-scm.com/downloads)
 
-2. Make sure Python 3.6.8 is installed and added to PATH (get the installer [here](https://www.python.org/downloads/release/python-368/))
+2. Make sure Python 3.6.8 (64-bit) is installed and added to PATH (get the installer [here](https://www.python.org/downloads/release/python-368/))
 
 3. Open Windows PowerShell (right-click the Start button and select from the menu, or search `powershell.exe`) and `cd` to which directory will host `musAIc`
 
-4. `$ git clone` this repository in some folder.
+4. `$ git clone https://github.com/Denbergvanthijs/musaic.git` this repository in some folder.
 
 5. `pip install wheel cython`
 
-6. `pip install ./requirements/rtmidi_python-0.2.2-cp36-cp36m-win_amd64.whl`
+6. `pip install --upgrade pip`
 
-7. Install the required packages with ```$ pip install -r requirements/base.txt```
+7. `pip install ./requirements/rtmidi_python-0.2.2-cp36-cp36m-win_amd64.whl`
 
-8. Launch `musAIc` with ```$ python src/main/python/main.py```
+8. Install the required packages with ```$ pip install -r requirements/base.txt```
+
+9. Launch `musAIc` with ```$ python src/main/python/main.py```
 
 ## Detailed Instructions
 
