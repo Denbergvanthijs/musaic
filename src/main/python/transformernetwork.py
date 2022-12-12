@@ -11,7 +11,7 @@ from core import DEFAULT_AI_PARAMS, DEFAULT_META_DATA, DEFAULT_SECTION_PARAMS
 from network import NeuralNet
 
 
-class Transformer(NeuralNet):
+class TransformerNet(NeuralNet):
     def __init__(self, resources_path: str = None, init_callbacks: List = None) -> None:
         """Initialise the Transformer network.
 
@@ -19,7 +19,7 @@ class Transformer(NeuralNet):
         - Uses a Transformer instead of an LSTM
         - Changed try-except to if-else for callbacks
         """
-        # super(Transformer, self).__init__(resources_path, init_callbacks)
+        fp_training_data = "./src/main/resources/base/euroAI/"
 
         print("[NeuralNet] Initialising...")  # TODO: Change prints to logging
         self.loaded = False  # Set to true when model is loaded
@@ -33,10 +33,10 @@ class Transformer(NeuralNet):
 
         self.vocabulary = {"rhythm": 30, "melody": 25}  # Extracted from EuroAI model
 
-        with open(os.path.join(resources_path, "DataGenerator.conversion_params"), "rb") as f:
+        with open(os.path.join(fp_training_data, "DataGenerator.conversion_params"), "rb") as f:
             params_conversion = pickle.load(f)
 
-        with open(os.path.join(resources_path, "ChordGenerator.conversion_params"), "rb") as f:
+        with open(os.path.join(fp_training_data, "ChordGenerator.conversion_params"), "rb") as f:
             params_conversion_chord = pickle.load(f)
 
         self.rhythmDict = params_conversion["rhythm"]
@@ -78,7 +78,7 @@ class Transformer(NeuralNet):
     def embedMetaData(self, meta_data: dict = None) -> np.ndarray:
         """Preprocess meta data into a format that can be used by the model.
 
-        Changes from NeuralNet:
+        Changes compared to NeuralNet:
         - Removed the predict function from meta embedding, this enables the processed data to be used by the model.
 
         """
@@ -97,7 +97,7 @@ class Transformer(NeuralNet):
     def makeNote(self, pc, tick_start, tick_end, octave: int = 4) -> tuple:
         """Convert a pitch class to a note.
 
-        Changes from NeuralNet:
+        Changes compared to NeuralNet:
         - Moved function outside convertContextToNotes
         - Added octave parameter, default 4
         """
@@ -108,7 +108,7 @@ class Transformer(NeuralNet):
                      octave: int = 4, tick: int = 0, tick_end: int = 96) -> list:
         """Predict a chord using the chordNet.
 
-        Changes from NeuralNet:
+        Changes compared to NeuralNet:
         - embedMetaData is called here to replace duplicate code
         - Moved functions outside convertContextToNotes
         """
@@ -135,7 +135,7 @@ class Transformer(NeuralNet):
     def convertContextToNotes(self, context_rhythm, context_melody, context_chords, kwargs, octave=4) -> list:
         """Convert a context to a list of notes.
 
-        Changes from NeuralNet:
+        Changes compared to NeuralNet:
         - Provide the chord_mode to predictChord when the chord_mode is 'force'
         - Moved functions outside convertContextToNotes
         - Removed the try except block and replaced with if-else to check if we're at the end of the list
