@@ -89,7 +89,7 @@ class NeuralNet():
         self.chordNet = ChordNetwork.from_saved_custom(os.path.join(trainingsDir, 'chord'),
                                                        load_melody_encoder=True)
 
-        # predict some junk data to fully initilise model...
+        # Predict some junk data to fully initialise model...
         self.generateBar(**DEFAULT_SECTION_PARAMS, **DEFAULT_AI_PARAMS)
 
         print('\n[NeuralNet]', 'Neural network loaded in', int(time.time() - startTime), 'seconds\n')
@@ -398,25 +398,22 @@ class TransformerNet(NeuralNet):
         - Uses a Transformer instead of an LSTM
         - Changed try-except to if-else for callbacks
         """
-        fp_training_data = "./src/main/resources/base/euroAI/"
-
         print("[NeuralNet] Initialising...")  # TODO: Change prints to logging
         self.loaded = False  # Set to true when model is loaded
-
         time_start = time.time()
 
         print("[NeuralNet] === Using SMT22 model ===")
+        self.model = lambda _: 1  # Also needs a .predict(x) method, TODO: implement a model
+        self.model_chords = lambda _: 1  # Also needs a .predict(x) method  TODO: either implement seperate model or use the same model
 
-        self.model = lambda _: 1  # Also needs a .predict(x) method
-        self.model_chords = lambda _: 1  # Also needs a .predict(x) method
+        self.vocabulary = {"rhythm": 30, "melody": 25}  # Extracted from EuroAI model, TODO: investigate what this is
 
-        self.vocabulary = {"rhythm": 30, "melody": 25}  # Extracted from EuroAI model
-
+        fp_training_data = "./src/main/resources/base/euroAI/"  # TODO: Change to parameter
         with open(os.path.join(fp_training_data, "DataGenerator.conversion_params"), "rb") as f:
-            params_conversion = pickle.load(f)
+            params_conversion = pickle.load(f)  # TODO: investigate what this is
 
         with open(os.path.join(fp_training_data, "ChordGenerator.conversion_params"), "rb") as f:
-            params_conversion_chord = pickle.load(f)
+            params_conversion_chord = pickle.load(f)  # TODO: investigate what this is
 
         self.rhythmDict = params_conversion["rhythm"]
         for k, v in list(self.rhythmDict.items()):  # Reverse dict
@@ -426,8 +423,8 @@ class TransformerNet(NeuralNet):
         for k, v in list(self.chordDict.items()):  # Reverse dict
             self.chordDict[v] = k
 
-        # Predict some junk data to fully initilise model...
-        self.generateBar(**DEFAULT_SECTION_PARAMS, **DEFAULT_AI_PARAMS)
+        # Predict some junk data to fully initialise model...
+        self.generateBar(**DEFAULT_SECTION_PARAMS, **DEFAULT_AI_PARAMS)  # TODO: investigate if this is necessary
 
         print(f"[NeuralNet] Neural network loaded in {int(time.time() - time_start)} seconds")
 
@@ -449,7 +446,7 @@ class TransformerNet(NeuralNet):
         """
         notes = []
         for i in range(4):
-            note = (random.randint(60, 80), i * 24, (i + 1) * 24)
+            note = (random.randint(60, 80), i * 24, (i + 1) * 24)  # pitch, start tick, end tick
             notes.append(note)
 
         return notes
@@ -459,7 +456,6 @@ class TransformerNet(NeuralNet):
 
         Changes compared to NeuralNet:
         - Removed the predict function from meta embedding, this enables the processed data to be used by the model.
-
         """
         if not meta_data:
             meta_data = DEFAULT_META_DATA
@@ -494,7 +490,7 @@ class TransformerNet(NeuralNet):
         meta_data_processed = self.embedMetaData(meta_data)
 
         model_input = [np.array([[pc]]), np.array([[context_melody]]), meta_data_processed]
-        chord_outputs = self.model_chords.predict(x=model_input)
+        chord_outputs = self.model_chords.predict(x=model_input)  # TODO: implement model or remove
 
         if sample_mode in ("dist", "top"):
             chord = rand.choice(len(chord_outputs[0]), p=chord_outputs[0])
@@ -538,7 +534,7 @@ class TransformerNet(NeuralNet):
 
         notes = []
         for i, tick in enumerate(ticks_start):
-            # Removed the try except block and replaced with if-else
+            # Removed the try-except block and replaced with if-else
             ticks_end = ticks_start[i + 1] if i + 1 < len(ticks_start) else 96
 
             pc = context_melody[i // 2]
