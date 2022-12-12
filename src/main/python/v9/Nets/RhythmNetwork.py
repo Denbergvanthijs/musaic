@@ -88,12 +88,12 @@ class RhythmNetwork(Model):
     def __repr__(self):
         return "RhythmNetwork_" + "_".join(map(str, self.params[1:]))
 
-#V = 127
+# V = 127
 #
 # bemb = BarEmbedding(V=V, beat_embed_size=12,
 #                    embed_lstm_size=12, out_size=9)
 #
-#renc = RhythmEncoder(bemb, context_size=4, lstm_size=14)
+# renc = RhythmEncoder(bemb, context_size=4, lstm_size=14)
 #
 # rn = RhythmNetwork(V=V, rhythm_encoder=renc, dec_lstm_size=10,
 #                   dec_use_meta=True, compile_now=True)
