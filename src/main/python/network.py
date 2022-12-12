@@ -12,10 +12,12 @@ from core import DEFAULT_AI_PARAMS, DEFAULT_META_DATA, DEFAULT_SECTION_PARAMS
 RANDOM = 0
 VER_9 = 1
 EUROAI = 2
+SMT22 = 3
 
-PLAYER = 2
+PLAYER = 3
 
 if PLAYER != RANDOM:
+    from transformernetwork import TransformerNet
     from v9.Nets.ChordNetwork import ChordNetwork
     from v9.Nets.CombinedNetworkEuro import CombinedNetwork
     from v9.Nets.MetaEmbeddingEuro import MetaEmbedding
@@ -402,15 +404,23 @@ class NetworkEngine(multiprocessing.Process):
 
         self.network = None
 
-    def run(self):
+    def run(self) -> None:
+        """Starts the network engine process.
+
+        Changes from the original:
+        - Added support for the TransformerNet
+        """
         if not self.network:
-            if PLAYER == VER_9 or PLAYER == EUROAI:
-                self.network = NeuralNet(resources_path=self.resources_path,
-                                         init_callbacks=self.init_callbacks)
+            if PLAYER in (VER_9, EUROAI):
+                self.network = NeuralNet(resources_path=self.resources_path, init_callbacks=self.init_callbacks)
+
+            elif PLAYER == SMT22:
+                self.network = TransformerNet(resources_path=self.resources_path, init_callbacks=self.init_callbacks)
+
             elif PLAYER == RANDOM:
                 self.network = RandomPlayer()
 
-            print('[NetworkEngine]', 'network loaded')
+            print("[NetworkEngine] network loaded")
 
         while not self.stopRequest.is_set():
             try:
@@ -421,15 +431,15 @@ class NetworkEngine(multiprocessing.Process):
                 continue
 
             # print('generating result...')
-            result = self.network.generateBar(**requestMsg['request'])
+            result = self.network.generateBar(**requestMsg["request"])
             # print('generated result')
 
-            self.returnQueue.put({'measure_address': requestMsg['measure_address'],
-                                  'result': result})
+            self.returnQueue.put({"measure_address": requestMsg["measure_address"], "result": result})
 
             time.sleep(0.01)
 
-    def isLoaded(self):
+    def isLoaded(self) -> bool:
+        """Returns True if the network is loaded, False otherwise."""
         return self.network.loaded
 
     def join(self, timeout=1):
