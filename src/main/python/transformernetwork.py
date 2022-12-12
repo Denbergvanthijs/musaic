@@ -1,3 +1,5 @@
+import os
+import pickle
 import random
 import time
 from copy import deepcopy
@@ -17,7 +19,7 @@ class Transformer(NeuralNet):
         - Uses a Transformer instead of an LSTM
         - Changed try-except to if-else for callbacks
         """
-        super(Transformer, self).__init__(resources_path, init_callbacks)
+        # super(Transformer, self).__init__(resources_path, init_callbacks)
 
         print("[NeuralNet] Initialising...")  # TODO: Change prints to logging
         self.loaded = False  # Set to true when model is loaded
@@ -26,18 +28,23 @@ class Transformer(NeuralNet):
 
         print("[NeuralNet] === Using SMT22 model ===")
 
-        self.combinedNet = lambda _: 1  # Also needs a .predict(x) method
-        self.chordNet = lambda _: 1  # Also needs a .predict(x) method
+        self.model = lambda _: 1  # Also needs a .predict(x) method
+        self.model_chords = lambda _: 1  # Also needs a .predict(x) method
 
-        self.vocabulary = {'rhythm': [0, 1, 2, 3, 4],
-                           'melody': [0, 1, 2, 3, 4]}
+        self.vocabulary = {"rhythm": 30, "melody": 25}  # Extracted from EuroAI model
 
-        self.rhythmDict = {}  # conversionParams['rhythm']
+        with open(os.path.join(resources_path, "DataGenerator.conversion_params"), "rb") as f:
+            params_conversion = pickle.load(f)
+
+        with open(os.path.join(resources_path, "ChordGenerator.conversion_params"), "rb") as f:
+            params_conversion_chord = pickle.load(f)
+
+        self.rhythmDict = params_conversion["rhythm"]
         for k, v in list(self.rhythmDict.items()):  # Reverse dict
             self.rhythmDict[v] = k
 
-        self.chordDict = {}  # chordConversionParams['chords']
-        for k, v in list(self.chordDict.items()):
+        self.chordDict = params_conversion_chord["chords"]
+        for k, v in list(self.chordDict.items()):  # Reverse dict
             self.chordDict[v] = k
 
         # Predict some junk data to fully initilise model...
@@ -87,7 +94,7 @@ class Transformer(NeuralNet):
 
         return np.tile(values, (1, 1))
 
-    def makeNote(self, pc, startTick, endTick, octave: int = 4) -> tuple:
+    def makeNote(self, pc, tick_start, tick_end, octave: int = 4) -> tuple:
         """Convert a pitch class to a note.
 
         Changes from NeuralNet:
@@ -95,20 +102,20 @@ class Transformer(NeuralNet):
         - Added octave parameter, default 4
         """
         nn = 12 * (octave + 1) + pc - 1
-        return int(nn), startTick, endTick
+        return int(nn), tick_start, tick_end
 
-    def predictChord(self, notes, pc, sample_mode, melodyContext, metaData, chord_mode="auto",
-                     octave: int = 4, tick: int = 0, endTick: int = 96) -> list:
+    def predictChord(self, notes, pc, sample_mode, context_melody, meta_data, chord_mode="auto",
+                     octave: int = 4, tick: int = 0, tick_end: int = 96) -> list:
         """Predict a chord using the chordNet.
 
         Changes from NeuralNet:
         - embedMetaData is called here to replace duplicate code
         - Moved functions outside convertContextToNotes
         """
-        meta_data_processed = self.embedMetaData(metaData)
+        meta_data_processed = self.embedMetaData(meta_data)
 
-        model_input = [np.array([[pc]]), np.array([[melodyContext]]), meta_data_processed]
-        chord_outputs = self.chordNet.predict(x=model_input)
+        model_input = [np.array([[pc]]), np.array([[context_melody]]), meta_data_processed]
+        chord_outputs = self.model_chords.predict(x=model_input)
 
         if sample_mode in ("dist", "top"):
             chord = rand.choice(len(chord_outputs[0]), p=chord_outputs[0])
@@ -121,11 +128,11 @@ class Transformer(NeuralNet):
             intervals = [rand.choice(intervals)]
 
         for interval in intervals:
-            notes.append(self.makeNote(pc + interval - 12, tick, endTick, octave=octave))
+            notes.append(self.makeNote(pc + interval - 12, tick, tick_end, octave=octave))
 
         return notes
 
-    def convertContextToNotes(self, rhythmContext, melodyContext, chordContexts, kwargs, octave=4) -> list:
+    def convertContextToNotes(self, context_rhythm, context_melody, context_chords, kwargs, octave=4) -> list:
         """Convert a context to a list of notes.
 
         Changes from NeuralNet:
@@ -143,7 +150,7 @@ class Transformer(NeuralNet):
             chord_mode = int(chord_mode)
 
         ticks_on = [False] * 96
-        for i, beat in enumerate(rhythmContext):
+        for i, beat in enumerate(context_rhythm):
             b = self.rhythmDict[beat]
             for onset in b:
                 ticks_on[int((i + onset) * 24)] = True
@@ -155,25 +162,25 @@ class Transformer(NeuralNet):
             # Removed the try except block and replaced with if-else
             ticks_end = ticks_start[i + 1] if i + 1 < len(ticks_start) else 96
 
-            pc = melodyContext[i // 2]
+            pc = context_melody[i // 2]
 
             if chord_mode == "force":
                 tonic = 12 + (pc % 12)
 
                 # Changed chord_mode parameter from none given to force
-                notes = self.predictChord(notes, tonic, sample_mode, melodyContext, kwargs["meta_data"],
-                                          chord_mode=chord_mode, octave=octave, tick=tick, endTick=ticks_end)
+                notes = self.predictChord(notes, tonic, sample_mode, context_melody, kwargs["meta_data"],
+                                          chord_mode=chord_mode, octave=octave, tick=tick, tick_end=ticks_end)
 
             elif chord_mode in (0, 1, "auto"):
                 if pc >= 12:
                     # Draw chord intervals...
-                    notes = self.predictChord(notes, pc, sample_mode, melodyContext, kwargs["meta_data"],
-                                              chord_mode=chord_mode, octave=octave, tick=tick, endTick=ticks_end)
+                    notes = self.predictChord(notes, pc, sample_mode, context_melody, kwargs["meta_data"],
+                                              chord_mode=chord_mode, octave=octave, tick=tick, tick_end=ticks_end)
                 else:
                     notes.append(self.makeNote(pc, tick, ticks_end, octave=octave))
 
             else:
-                for chord_pc in chordContexts[i // 2]:
+                for chord_pc in context_chords[i // 2]:
                     notes.append(self.makeNote(chord_pc, tick, ticks_end, octave=octave))
 
         return notes
