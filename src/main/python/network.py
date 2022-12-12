@@ -25,7 +25,7 @@ if PLAYER != RANDOM:
 
 
 class RandomPlayer():
-    """ For testing purpose only! """
+    """For testing purpose only!"""
 
     def __init__(self):
         print("[RandomPlayer] === Using RANDOM PLAYER for testing ===")
@@ -100,7 +100,7 @@ class NeuralNet():
                 init_callbacks()
 
     def generateBar(self, octave=4, **kwargs):
-        """ Expecting...
+        """Expecting...
             - "lead_bar"
             - "prev_bars"
             - "sample_mode"
@@ -251,10 +251,7 @@ class NeuralNet():
         return sampledRhythm, sampledMelody, sampledChords
 
     def convertBarToContext(self, measure):
-        """
-        Converts a list of notes (nn, start_tick, end_tick) to context
-        format for network to use
-        """
+        """Converts a list of notes (nn, start_tick, end_tick) to context format for network to use."""
         if not measure or measure.isEmpty():
             # Empty bar...
             rhythm = [self.rhythmDict[()] for _ in range(4)]
