@@ -426,6 +426,19 @@ class TransformerNet(NeuralNet):
         Currently just random notes for testing.
         In the future this will be replaced with a call to the Transformer model.
         """
+        # Preprocess input
+        context_rhythms, context_melodies = self.getContexts(kwargs)
+        meta_data_embedded = self.embedMetaData(kwargs["meta_data"])  # Data has not been run through embedding layer yet
+        lead_rhythm, lead_melody = self.getLead(kwargs, context_rhythms, context_melodies)
+
+        model_input = [*context_rhythms, context_melodies, meta_data_embedded,
+                       lead_rhythm, lead_melody]  # Original model uses a list of inputs
+
+        # model_output = self.model.predict(x=model_input)  # TODO: implement model
+        # sampled_rhythm, sampled_melody, sampled_chords = self.sampleOutput(model_output, kwargs)  # Postprocess output
+        # return_val = self.convertContextToNotes(sampled_rhythm[0], sampled_melody[0], sampled_chords, kwargs, octave=octave)
+
+        # Temporary random notes
         notes = []
         for i in range(4):
             note = (random.randint(60, 80), i * 24, (i + 1) * 24)  # pitch, start tick, end tick
