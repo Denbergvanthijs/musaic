@@ -434,6 +434,12 @@ class TransformerNet(NeuralNet):
         model_input = [*context_rhythms, context_melodies, meta_data_embedded,
                        lead_rhythm, lead_melody]  # Original model uses a list of inputs
 
+        # Write model input to file for debugging
+        with open("model_input.txt", "w+") as f:
+            for name, i in zip(["context_rhythms", "context_melodies", "meta_data_embedded", "lead_rhythm", "lead_melody"],
+                               [context_rhythms, context_melodies, meta_data_embedded, lead_rhythm, lead_melody]):
+                f.write(f"{name}:\n{i}\n\n")
+
         # model_output = self.model.predict(x=model_input)  # TODO: implement model
         # sampled_rhythm, sampled_melody, sampled_chords = self.sampleOutput(model_output, kwargs)  # Postprocess output
         # return_val = self.convertContextToNotes(sampled_rhythm[0], sampled_melody[0], sampled_chords, kwargs, octave=octave)
