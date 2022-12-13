@@ -406,7 +406,7 @@ class TransformerNet(NeuralNet):
             self.chordDict[v] = k
 
         # Predict some junk data to fully initialise model...
-        self.generateBar(**DEFAULT_SECTION_PARAMS, **DEFAULT_AI_PARAMS)  # TODO: investigate if this is necessary
+        _ = self.generateBar(**DEFAULT_SECTION_PARAMS, **DEFAULT_AI_PARAMS)  # TODO: investigate if this is necessary
 
         print(f"[NeuralNet] Neural network loaded in {int(time.time() - time_start)} seconds")
 
