@@ -119,5 +119,4 @@ Note: there is also a small bug where re-opening the options dialog will reset w
 ## Issues
 
 - The MIDI box in the options menu needs to be selected to hear sounds
-- MusAIc will stop generating new bars if all five styles (qb, eb, lb, fb, tb) are deselected
-- altEnd = self.altEnds[i % numAlts][start:start + self.params['loop_alt_len']]
+- MusAIc will stop generating new bars if all five styles (qb, eb, lb, fb, tb) are de-selected
