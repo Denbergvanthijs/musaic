@@ -4,6 +4,8 @@ src/test.py
 *.mid
 *.midi
 model_input.txt
+model_input_shapes.txt
+commands.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
