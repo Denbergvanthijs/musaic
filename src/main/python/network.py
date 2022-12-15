@@ -4,7 +4,6 @@ import pickle
 import random
 import time
 from copy import deepcopy
-from typing import List
 
 import numpy as np
 import numpy.random as rand
@@ -15,7 +14,7 @@ VER_9 = 1
 EUROAI = 2
 SMT22 = 3
 
-PLAYER = 3
+PLAYER = 2
 
 if PLAYER != RANDOM:
     from v9.Nets.ChordNetwork import ChordNetwork
@@ -115,6 +114,11 @@ class NeuralNet():
         embeddedMetaData = self.embedMetaData(kwargs["meta_data"])
         leadRhythm, leadMelody = self.getLead(kwargs, rhythmContexts, melodyContexts)
 
+        with open("model_input.txt", "w+") as f:
+            for name, i in zip(["context_rhythms", "context_melodies", "meta_data_embedded", "lead_rhythm", "lead_melody"],
+                               [rhythmContexts, melodyContexts, embeddedMetaData, leadRhythm, leadMelody]):
+                f.write(f"{name}:\n{i}\n\n")
+
         output = self.combinedNet.predict(x=[*rhythmContexts,
                                              melodyContexts,
                                              embeddedMetaData,
@@ -144,65 +148,89 @@ class NeuralNet():
 
         return self.metaEmbedder.predict(md)
 
-    def getContexts(self, kwargs):
-        mode = kwargs.get("context_mode", None)
-        injection_params = kwargs.get("injection_params", DEFAULT_AI_PARAMS["injection_params"])
-        prev_bars = kwargs.get("prev_bars")
+    def getContexts(self, kwargs: dict) -> list:
+        """Returns rhythm and melody contexts.
 
-        if mode == "inject":
-            rhythmPool = []
-            for rhythmType in injection_params[0]:
+        Either from previous bars (real) or from injection params (inject).
+        Currently set to the four most recent bars for real mode.
+        Or four injected bars for inject mode.
+
+        The user can set the 'context_mode' and 'injection_params' in the MusAIc GUI.
+
+        Changes compared to original:
+        - Moved getters for kwargs within if-else
+        """
+        context_mode = kwargs.get("context_mode", None)  # "inject" new measures, "real" use previous measures
+
+        if context_mode == "inject":  # Inject new measures
+            note_durations, scale = kwargs.get("injection_params", DEFAULT_AI_PARAMS["injection_params"])
+
+            rhythm_pool = []
+            for rhythm_type in note_durations:
                 # *2 gives extra weight to non-empty beats
-                rhythmPool.extend({"qb": [self.rhythmDict[(0.0,)]] * 2,
-                                   "lb": [self.rhythmDict[()]],
-                                   "eb": [self.rhythmDict[(0.0, 0.5)], self.rhythmDict[(0.5,)]] * 2,
-                                   "fb": [self.rhythmDict[(0.0, 0.25, 0.5, 0.75)],
-                                          self.rhythmDict[(0.0, 0.25, 0.5)],
-                                          self.rhythmDict[(0.5, 0.75)]] * 2,
-                                   "tb": [self.rhythmDict[(0.0, 0.333, 0.6667)],
-                                          self.rhythmDict[(0.3333, 0.6667)]] * 2, }[rhythmType])
+                rhythm_pool.extend({"qb": [self.rhythmDict[(0.0,)]] * 2,  # Quarter
+                                   "lb": [self.rhythmDict[()]],  # Long
+                                    "eb": [self.rhythmDict[(0.0, 0.5)], self.rhythmDict[(0.5,)]] * 2,  # Eighth
+                                    "fb": [self.rhythmDict[(0.0, 0.25, 0.5, 0.75)],  # Sixteenth
+                                           self.rhythmDict[(0.0, 0.25, 0.5)],
+                                           self.rhythmDict[(0.5, 0.75)]] * 2,
+                                    "tb": [self.rhythmDict[(0.0, 0.333, 0.6667)],  # Triplet
+                                           self.rhythmDict[(0.3333, 0.6667)]] * 2, }[rhythm_type])
 
-            rhythmContexts = [np.random.choice(rhythmPool, size=(1, 4)) for _ in range(4)]
+            context_rhythms = [np.random.choice(rhythm_pool, size=(1, 4)) for _ in range(4)]
 
-            melodyPool = {"maj": [1, 3, 5, 6, 8, 10, 12],
-                          "min": [1, 3, 4, 6, 8, 10, 11],
-                          "pen": [1, 4, 6, 8, 11],
-                          "5th": [1, 8]}[injection_params[1]]
+            melody_pool = {"maj": [1, 3, 5, 6, 8, 10, 12],  # Major
+                           "min": [1, 3, 4, 6, 8, 10, 11],  # Minor
+                           "pen": [1, 4, 6, 8, 11],  # Pentatonic
+                           "5th": [1, 8]}[scale]  # 5th
 
             # if len(injection_params) > 2 and injection_params[2]:
-            melodyPool.extend([x + 12 for x in melodyPool])
+            melody_pool.extend([x + 12 for x in melody_pool])  # Add octave
 
-            melodyContexts = np.random.choice(melodyPool, size=(1, 4, 48))
+            context_melodies = np.random.choice(melody_pool, size=(1, 4, 48))
 
-        else:
-            rhythmContexts = np.zeros((4, 1, 4))
-            melodyContexts = np.zeros((1, 4, 48))
+        else:  # 'real', use real measures from previous bars
+            prev_bars = kwargs.get("prev_bars")
+            context_rhythms = np.zeros((4, 1, 4))
+            context_melodies = np.zeros((1, 4, 48))
 
-            for i, b in enumerate(prev_bars[-4:]):
-                r, m = self.convertBarToContext(b)
-                rhythmContexts[i, :, :] = r
-                melodyContexts[:, i, :] = m
+            for i, bar in enumerate(prev_bars[-4:]):
+                rhythm, melody = self.convertBarToContext(bar)
+                context_rhythms[i, :, :] = rhythm
+                context_melodies[:, i, :] = melody
 
-        # print("[NeuralNet]", "Contexts:", rhythmContexts, melodyContexts)
+        return context_rhythms, context_melodies
 
-        return rhythmContexts, melodyContexts
+    def getLead(self, kwargs: dict, context_rhythms: np.ndarray, context_melodies: np.ndarray) -> list:
+        """Returns the last bar of the lead.
 
-    def getLead(self, kwargs, rhythmContexts, melodyContexts):
-        if "lead_mode" not in kwargs or not kwargs["lead_mode"]:
-            leadRhythm = rhythmContexts[-1]
-            leadMelody = melodyContexts[:, -1:, :]
+        If no lead is given, the last bar of the context is used.
+        The user can set the 'lead_mode' in the MusAIc GUI.
 
-        elif kwargs["lead_mode"] == "both":
-            leadRhythm, leadMelody = self.convertBarToContext(kwargs["lead_bar"])
+        TODO: Add an else statement to return the last bar of the context if the lead is not given.
+        TODO: Add option for lead_mode="rhythm" to return only rhythm, use last bar of context for melody.
+        """
+        if "lead_mode" not in kwargs or not kwargs["lead_mode"]:  # No lead given, use last bar of context
+            lead_rhythm = context_rhythms[-1]
+            lead_melody = context_melodies[:, -1:, :]
 
-        elif kwargs["lead_mode"] == "melody":
-            leadRhythm = rhythmContexts[-1]
-            _, leadMelody = self.convertBarToContext(kwargs["lead_bar"])
+        elif kwargs["lead_mode"] == "both":  # Lead given, return both rhythm and melody
+            lead_rhythm, lead_melody = self.convertBarToContext(kwargs["lead_bar"])
 
-        return leadRhythm, leadMelody
+        elif kwargs["lead_mode"] == "melody":  # Lead given, return only melody, use last bar of context for rhythm
+            lead_rhythm = context_rhythms[-1]
+            _, lead_melody = self.convertBarToContext(kwargs["lead_bar"])
 
-    def sampleOutput(self, output, kwargs):
-        mode = kwargs.get("sample_mode", "dist")
+        return lead_rhythm, lead_melody
+
+    def sampleOutput(self, output: list, kwargs: dict) -> list:
+        """Samples the output of the neural network.
+
+        Either returns the best output (argmax), a weighted sample (dist) or a weighted sample from the top 5 predictions.
+
+        The user can set the 'sample_mode' and 'chord_mode' in the MusAIc GUI.
+        """
+        sample_mode = kwargs.get("sample_mode", "dist")  # Either "best", "dist", or "top"
         chord_mode = kwargs.get("chord_mode", 1)
 
         if chord_mode in ("force", "auto"):
@@ -210,55 +238,50 @@ class NeuralNet():
         else:
             chord_num = int(chord_mode)
 
-        # print("[NeuralNet]", "sampleOutput", "chord_mode", chord_mode, "chord_num", chord_num)
+        if sample_mode in ("argmax", "best"):  # Return the best output
+            sampled_rhythm = np.argmax(output[0], axis=-1)
+            sampled_melody = np.argmax(output[1], axis=-1)
+            sampled_chords = [list(rand.choice(self.vocabulary["melody"], p=curr_p, size=chord_num, replace=True))
+                              for curr_p in output[1][0]]  # Sample chord_num chords from the melody distribution
 
-        if mode in ("argmax", "best"):
-            sampledRhythm = np.argmax(output[0], axis=-1)
-            sampledMelody = np.argmax(output[1], axis=-1)
-            sampledChords = [list(rand.choice(self.vocabulary["melody"], p=curr_p,
-                                              size=chord_num, replace=True)) for curr_p in output[1][0]]
-        elif mode == "dist":
-            sampledRhythm = np.array([[np.random.choice(self.vocabulary["rhythm"], p=dist) for dist in output[0][0]]])
-            sampledMelody = np.array([[np.random.choice(self.vocabulary["melody"], p=dist) for dist in output[1][0]]])
-            sampledChords = [list(rand.choice(self.vocabulary["melody"], p=curr_p, size=chord_num, replace=True))
-                             for curr_p in output[1][0]]
-        elif mode == "top":
-            # Random from top 5 predictions....
-            r = []
-            sampledChords = []
-            for i in range(4):
+        elif sample_mode == "dist":  # Weighted sample from full distribution
+            sampled_rhythm = np.array([[np.random.choice(self.vocabulary["rhythm"], p=dist) for dist in output[0][0]]])
+            sampled_melody = np.array([[np.random.choice(self.vocabulary["melody"], p=dist) for dist in output[1][0]]])
+            sampled_chords = [list(rand.choice(self.vocabulary["melody"], p=curr_p, size=chord_num, replace=True))
+                              for curr_p in output[1][0]]  # Sample chord_num chords from the melody distribution
+
+        elif sample_mode == "top":  # Weighted sample from top 5 predictions
+            rhythm = []
+            melody = []
+            sampled_chords = []
+
+            for i in range(4):  # Sample rhythm
                 top5_rhythm_indices = np.argsort(output[0][0][i], axis=-1)[-5:]
 
                 r_probs = output[0][0][i][top5_rhythm_indices]
                 r_probs /= sum(r_probs)
 
-                r.append(rand.choice(top5_rhythm_indices, p=r_probs))
+                rhythm.append(rand.choice(top5_rhythm_indices, p=r_probs))
 
-            sampledRhythm = np.array([r])
-            m = []
-
-            for i in range(len(output[1][0])):
+            for i in range(len(output[1][0])):  # Sample melody
                 top5_m_indices = np.argsort(output[1][0][i], axis=-1)[-5:]
                 m_probs = output[1][0][i][top5_m_indices]
                 m_probs /= sum(m_probs)
 
-                m.append(rand.choice(top5_m_indices, p=m_probs))
-                sampledChords.append(list(rand.choice(top5_m_indices, p=m_probs,
-                                                      replace=True, size=chord_num)))
-            sampledMelody = np.array([m])
+                melody.append(rand.choice(top5_m_indices, p=m_probs))
+                sampled_chords.append(list(rand.choice(top5_m_indices, p=m_probs, replace=True, size=chord_num)))
 
-        # print("[NeuralNet]", sampledRhythm.shape, sampledMelody.shape)
-        return sampledRhythm, sampledMelody, sampledChords
+            sampled_rhythm = np.array([rhythm])
+            sampled_melody = np.array([melody])
+
+        return sampled_rhythm, sampled_melody, sampled_chords
 
     def convertBarToContext(self, measure):
         """Converts a list of notes (nn, start_tick, end_tick) to context format for network to use."""
-        if not measure or measure.isEmpty():
-            # Empty bar...
+        if not measure or measure.isEmpty():  # Empty bar
             rhythm = [self.rhythmDict[()] for _ in range(4)]
             melody = [random.choice([1, 7]) for _ in range(48)]
             return np.array([rhythm]), np.array([[melody]])
-
-        # print(measure.notes)
 
         rhythm = []
         melody = [-1] * 48
@@ -373,7 +396,7 @@ class NeuralNet():
 
 
 class TransformerNet(NeuralNet):
-    def __init__(self, resources_path: str = None, init_callbacks: List = None) -> None:
+    def __init__(self, resources_path: str = None, init_callbacks: list = None) -> None:
         """Initialise the Transformer network.
 
         Changes compared to NeuralNet:
@@ -555,7 +578,7 @@ class TransformerNet(NeuralNet):
                 else:
                     notes.append(self.makeNote(pc, tick, ticks_end, octave=octave))
 
-            else:
+            else:  # Only use predicted chords if chord_mode is not {force, auto, 0, 1}
                 for chord_pc in context_chords[i // 2]:
                     notes.append(self.makeNote(chord_pc, tick, ticks_end, octave=octave))
 
