@@ -24,7 +24,7 @@ V = 20
 ROOT_PATH = os.path.expanduser("./generated/")
 
 PARAMETER_RANGES = {
-    'length': [2, 4, 8],
+    'length': [2, 4, 8],  # See core.py for explanation
     'loop_alt_len': [0, 1],
     'sample_mode': ['dist'],
     'chord_mode': [1],
@@ -38,7 +38,7 @@ PARAMETER_RANGES = {
 }
 
 META_DATA_RANGES = {
-    'span': (1, 30),
+    'span': (1, 30),  # See core.py for explanation
     'jump': (0, 12),
     'cDens': (0, 1),
     # 'cDepth': (1, 5),

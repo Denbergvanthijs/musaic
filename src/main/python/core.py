@@ -5,39 +5,42 @@ from random import randint
 
 from mido.frozen import FrozenMessage
 
-DEFAULT_META_DATA = {
-    'ts': '4/4',
-    'span': 10.0,
-    'jump': 1.5,
-    'cDens': 0.25,
-    'cDepth': 1.0,
-    'tCent': 62.0,
-    'rDens': 1.2,
-    'pos': 0.0,
-    'expression': 0
+DEFAULT_META_DATA = {  # Min/max can be found in elements.py
+    'ts': '4/4',  # Not changeable in MusAIc interface, Time signature
+    'span': 10.0,  # First knob in MusAIc, 1 to 30
+    'jump': 1.5,  # Second knob in MusAIc, 0 = no jumps, 12 = one octave, how much notes change the tone
+    'cDens': 0.25,  # Third knob in MusAIc, 0 to 1
+    'cDepth': 1.0,  # Fourth knob in MusAIc, 1 to 5, number of notes in a chord
+    'tCent': 62.0,  # Fifth knob in MusAIc, 40 to 80
+    'rDens': 1.2,  # Sixth knob in MusAIc, 0 to 8, note interval step, high is small interval,
+    'pos': 0.0,  # Seventh knob in MusAIc, 0 to 1
+    'expression': 0  # Not changeable in MusAIc interface
 }
 
 DEFAULT_SECTION_PARAMS = {
-    'length': 4,
-    'loop_num': 1,
-    'octave': 4,
-    'velocity_range': (80, 100),
-    'note_length': 0,
-    'transpose_octave': 0,
+    'length': 4,  # Number of bars, 1 to 64, can be altered in the 'structure' section
+    'loop_num': 1,  # Number of times to loop, 1 to 32, can be altered in the 'structure' section
+    'octave': 4,  # Index of octave, list from -3 to 3, thus 4 is the 4th index thus 0
+    'velocity_range': (80, 100),  # Velocity Range, 0 to 127, can be altered in the 'playback' section
+    'note_length': 0,  # Overwrite note length, 0 = default, 96 = length of 1 bar, can be altered in the 'playback' section
+    'transpose_octave': 0,  # Transpose octave, -3 to 3, can be altered in the 'playback' section
 }
 
 DEFAULT_AI_PARAMS = {
-    'loop_alt_len': 0,
-    'loop_alt_num': 2,
-    'sample_mode': 'dist',
-    'lead_mode': 'melody',
-    'context_mode': 'inject',
-    'lead': -1,
-    'injection_params': (('qb', 'eb'), 'maj'),
-    'lead_bar': None,
-    'prev_bars': None,
-    'chord_mode': 0,
-    'meta_data': None,
+    'loop_alt_len': 0,  # Length of alternate ending, 0 = no alternate ending, to 4, can be altered in the 'structure' section
+    'loop_alt_num': 2,  # Number of alternate endings, 2 to 8, can be altered in the 'structure' section
+    # {dist, top, best} Get either the best, weighted out of top 5 or weighted sample from model for melody, rhythm and chords
+    'sample_mode': 'dist',  # Can be altered in the 'sample' section
+    'lead_mode': 'melody',  # {melody, both} Get melody or both melody and rhythm from the lead track, can be altered in the 'lead' section
+    # {inject, real} Inject rhythm and melody context based on default parameters (inject) or based on previous four bars (real)
+    'context_mode': 'inject',  # Can be altered in the 'style' section
+    'lead': -1,  # Which track to base predictions on, can be altered in the 'lead' section
+    # Only for context_mode='inject', (note_durations, scale), used to generate rhythm and melody context
+    'injection_params': (('qb', 'eb'), 'maj'),  # See network.py, can be altered in the 'style' section
+    'lead_bar': None,  # Which bar to base predictions on
+    'prev_bars': None,  # Previous bars to base predictions on
+    'chord_mode': 0,  # Number of notes in a chord: {auto, force, 1, 2, 3, 4}, can be altered in the 'sample' section
+    'meta_data': None,  # Meta data to base predictions on, see DEFAULT_META_DATA
 }
 
 

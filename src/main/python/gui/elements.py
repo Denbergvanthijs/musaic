@@ -791,7 +791,7 @@ class SectionParameters(QtWidgets.QFrame):
         meta_box.setLayout(main_layout)
 
         self.meta_params = {
-            'span': Knob(1, 30),
+            'span': Knob(1, 30),  # See core.py for explanation
             'jump': Knob(0, 12),
             'cDens': Knob(0, 1),
             'cDepth': Knob(1, 5),
