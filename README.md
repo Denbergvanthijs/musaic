@@ -115,3 +115,9 @@ Note: there is also a small bug where re-opening the options dialog will reset w
 ### Changing the AI musicia
 
 `musAIc` is currently bundled with two neural networks: the original developed in 2019 (affectionately named `VERSION 9`), and the WIP pop star `EUROAI`. In the future they (and others!) would be selectable from within the GUI, however for now the only way is to change the `PLAYER` global variable in `src/main/python/network.py` to either 1 for `VERSION_9`, 2 for `EUROAI`, or 0 for a random number generator (for development/debugging, will not load `tensorflow`).
+
+## Issues
+
+- The MIDI box in the options menu needs to be selected to hear sounds
+- MusAIc will stop generating new bars if all five styles (qb, eb, lb, fb, tb) are deselected
+- altEnd = self.altEnds[i % numAlts][start:start + self.params['loop_alt_len']]
