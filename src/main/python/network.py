@@ -4,6 +4,7 @@ import pickle
 import random
 import time
 from copy import deepcopy
+from typing import Union
 
 import numpy as np
 import numpy.random as rand
@@ -14,7 +15,7 @@ VER_9 = 1
 EUROAI = 2
 SMT22 = 3
 
-PLAYER = 2
+PLAYER = 3
 
 if PLAYER != RANDOM:
     from v9.Nets.ChordNetwork import ChordNetwork
@@ -29,77 +30,97 @@ class RandomPlayer():
     def __init__(self):
         print("[RandomPlayer] === Using RANDOM PLAYER for testing ===")
 
-    def generateBar(self, **kwargs):
+    def generateBar(self, **kwargs: dict) -> list:
+        """Generates a random bar of music. Returns a list of MIDI notes in the form (pitch, start tick, end tick)."""
         notes = []
         for i in range(4):
-            note = (random.randint(60, 80), i * 24, (i + 1) * 24)
+            note = (random.randint(60, 80), i * 24, (i + 1) * 24)  # (pitch, start tick, end tick)
             notes.append(note)
 
         return notes
 
 
 class NeuralNet():
-    def __init__(self, resources_path=None, init_callbacks=None):
+    def __init__(self, resources_path=None, init_callbacks=None) -> None:
+        """Initialises either the V9 or EuroAI neural network.
+
+        Changes compared to original implementation:
+        - Removed resources_path parameter, as it is not used
+        - Changed try-except to if-else for callbacks
+        """
         print("[NeuralNet]", "Initialising...")
+
         self.loaded = False
-
-        startTime = time.time()
-
-        if not resources_path:
-            resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../resources/base/")
+        time_start = time.time()
 
         if PLAYER == VER_9:
-            trainingsDir = "./src/main/resources/base/v9_lead/"
+            fp_training_data = "./src/main/resources/base/v9_lead/"
         elif PLAYER == EUROAI:
-            trainingsDir = "./src/main/resources/base/euroAI/"
+            fp_training_data = "./src/main/resources/base/euroAI/"
         else:
             raise (f"[NeuralNet] Unknown player initialised ({PLAYER}). Aborting")
 
         print(f"[NeuralNet] === Using {'VER9' if PLAYER == VER_9 else 'EUROAI'} ===")
 
-        with open(os.path.join(trainingsDir, "DataGenerator.conversion_params"), "rb") as f:
-            conversionParams = pickle.load(f)
+        with open(os.path.join(fp_training_data, "DataGenerator.conversion_params"), "rb") as f:
+            params_conversion = pickle.load(f)
 
-        self.rhythmDict = conversionParams["rhythm"]
-        for k, v in list(self.rhythmDict.items()):
+        with open(os.path.join(fp_training_data, "ChordGenerator.conversion_params"), "rb") as f:
+            params_conversion_chord = pickle.load(f)
+
+        self.rhythmDict = params_conversion["rhythm"]
+        for k, v in list(self.rhythmDict.items()):  # Reverse dict
             self.rhythmDict[v] = k
 
-        self.metaEmbedder = MetaEmbedding.from_saved_custom(os.path.join(trainingsDir, "meta"))
-        metaPredictor = MetaPredictor.from_saved_custom(os.path.join(trainingsDir, "meta"))
-
-        weightsFolder = os.path.join(trainingsDir, "weights")
-        self.combinedNet = CombinedNetwork.from_saved_custom(weightsFolder, metaPredictor,
-                                                             generation=True, compile_now=False)
-
-        self.vocabulary = {"rhythm": self.combinedNet.params["rhythm_net_params"][2],
-                           "melody": self.combinedNet.params["melody_net_params"][3]}
-
-        with open(os.path.join(trainingsDir, "ChordGenerator.conversion_params"), "rb") as f:
-            chordConversionParams = pickle.load(f)
-
-        self.chordDict = chordConversionParams["chords"]
-        for k, v in list(self.chordDict.items()):
+        self.chordDict = params_conversion_chord["chords"]
+        for k, v in list(self.chordDict.items()):  # Reverse dict
             self.chordDict[v] = k
 
-        self.chordNet = ChordNetwork.from_saved_custom(os.path.join(trainingsDir, "chord"),
-                                                       load_melody_encoder=True)
+        fp_chords = os.path.join(fp_training_data, "chord")
+        self.model_chords = ChordNetwork.from_saved_custom(fp_chords, load_melody_encoder=True)
+
+        fp_meta = os.path.join(fp_training_data, "meta")
+        self.meta_embedder = MetaEmbedding.from_saved_custom(fp_meta)  # Used to preprocess meta data to input into model
+        meta_predictor = MetaPredictor.from_saved_custom(fp_meta)
+
+        fp_weights = os.path.join(fp_training_data, "weights")
+        self.model = CombinedNetwork.from_saved_custom(fp_weights, meta_predictor, generation=True, compile_now=False)
+
+        self.vocabulary = {"rhythm": self.model.params["rhythm_net_params"][2],
+                           "melody": self.model.params["melody_net_params"][3]}
+
+        self.note_durations_dict = {"qb": [self.rhythmDict[(0.0,)]] * 2,  # Quarter
+                                    "lb": [self.rhythmDict[()]],  # Long
+                                    "eb": [self.rhythmDict[(0.0, 0.5)], self.rhythmDict[(0.5,)]] * 2,  # Eighth
+                                    "fb": [self.rhythmDict[(0.0, 0.25, 0.5, 0.75)],  # Sixteenth
+                                           self.rhythmDict[(0.0, 0.25, 0.5)],
+                                           self.rhythmDict[(0.5, 0.75)]] * 2,
+                                    "tb": [self.rhythmDict[(0.0, 0.333, 0.6667)],  # Triplet
+                                           self.rhythmDict[(0.3333, 0.6667)]] * 2, }
+
+        self.scales_dict = {"maj": [1, 3, 5, 6, 8, 10, 12],  # Major
+                            "min": [1, 3, 4, 6, 8, 10, 11],  # Minor
+                            "pen": [1, 4, 6, 8, 11],  # Pentatonic
+                            "5th": [1, 8]}  # 5th
 
         # Predict some junk data to fully initialise model...
-        self.generateBar(**DEFAULT_SECTION_PARAMS, **DEFAULT_AI_PARAMS)
+        _ = self.generateBar(**DEFAULT_SECTION_PARAMS, **DEFAULT_AI_PARAMS)  # TODO: investigate if this is necessary
 
-        print(f"[NeuralNet] Neural network loaded in {int(time.time() - startTime)} seconds")
+        print(f"[NeuralNet] Neural network loaded in {int(time.time() - time_start)} seconds")
 
-        self.loaded = True
+        self.loaded = True  # Set to true when model is loaded
 
-        if init_callbacks:
-            try:
-                for f in init_callbacks:
-                    f()
-            except:
-                init_callbacks()
+        if init_callbacks:  # Call any callbacks
+            if not hasattr(init_callbacks, "__iter__"):  # Check if iterable
+                init_callbacks = [init_callbacks]
 
-    def generateBar(self, octave=4, **kwargs):
-        """Expecting...
+            for f in init_callbacks:
+                f()
+
+    def generateBar(self, octave: int = 4, **kwargs) -> list:
+        """Generates a bar of music.
+
+        Expecting...
             - "lead_bar"
             - "prev_bars"
             - "sample_mode"
@@ -110,43 +131,50 @@ class NeuralNet():
             - "meta_data"
             - "octave"
         """
-        rhythmContexts, melodyContexts = self.getContexts(kwargs)
-        embeddedMetaData = self.embedMetaData(kwargs["meta_data"])
-        leadRhythm, leadMelody = self.getLead(kwargs, rhythmContexts, melodyContexts)
+        # Preprocess input
+        context_rhythms, context_melodies = self.getContexts(kwargs)
+        meta_data_embedded = self.embedMetaData(kwargs["meta_data"])
+        lead_rhythm, lead_melody = self.getLead(kwargs, context_rhythms, context_melodies)
 
+        # TEMP: Write model input to file for debugging
         with open("model_input.txt", "w+") as f:
             for name, i in zip(["context_rhythms", "context_melodies", "meta_data_embedded", "lead_rhythm", "lead_melody"],
-                               [rhythmContexts, melodyContexts, embeddedMetaData, leadRhythm, leadMelody]):
+                               [context_rhythms, context_melodies, meta_data_embedded, lead_rhythm, lead_melody]):
                 f.write(f"{name}:\n{i}\n\n")
 
-        output = self.combinedNet.predict(x=[*rhythmContexts,
-                                             melodyContexts,
-                                             embeddedMetaData,
-                                             leadRhythm,
-                                             leadMelody])
+        model_input = [*context_rhythms, context_melodies, meta_data_embedded, lead_rhythm, lead_melody]
+        model_output = self.model.predict(x=model_input)
 
-        sampledRhythm, sampledMelody, sampledChords = self.sampleOutput(output, kwargs)
+        # Postprocess output
+        sampled_rhythm, sampled_melody, sampled_chords = self.sampleOutput(model_output, kwargs)
 
-        return self.convertContextToNotes(sampledRhythm[0],
-                                          sampledMelody[0],
-                                          sampledChords,
-                                          kwargs,
-                                          octave=octave)
+        return self.convertContextToNotes(sampled_rhythm[0], sampled_melody[0], sampled_chords, kwargs, octave=octave)
 
-    def embedMetaData(self, metaData):
-        if not metaData:
-            metaData = DEFAULT_META_DATA
+    def preprocessMetaData(self, meta_data: dict = None) -> np.ndarray:
+        """Preprocess meta data into a format that can be used by the model.
+
+        Changes compared to original implementation:
+        - Seperated the preprocessing from the embedding, resulting in this new function
+        """
+        if not meta_data:
+            meta_data = DEFAULT_META_DATA
+
         values = []
-
-        for k in sorted(metaData.keys()):
+        for k in sorted(meta_data.keys()):
             if k == "ts":
-                values.extend([4, 4])
+                values.extend([4, 4])  # TODO: make function more general with Fraction(metaData[k], _normalize=False)
             else:
-                values.append(metaData[k])
+                values.append(meta_data[k])
 
-        md = np.tile(values, (1, 1))
+        return np.tile(values, (1, 1))
 
-        return self.metaEmbedder.predict(md)
+    def embedMetaData(self, meta_data: dict = None) -> np.ndarray:
+        """Embeds meta data into a format that can be used by the model.
+
+        Changes compared to original implementation:
+        - Seperated the preprocessing from the embedding, resulting in new function preprocessMetaData
+        """
+        return self.meta_embedder.predict(self.preprocessMetaData(meta_data))
 
     def getContexts(self, kwargs: dict) -> list:
         """Returns rhythm and melody contexts.
@@ -157,36 +185,25 @@ class NeuralNet():
 
         The user can set the 'context_mode' and 'injection_params' in the MusAIc GUI.
 
-        Changes compared to original:
+        Changes compared to original implementation:
         - Moved getters for kwargs within if-else
+        - Seperated dict creation from dict lookup, moved dict creation to __init__ so it only happens once
         """
         context_mode = kwargs.get("context_mode", None)  # "inject" new measures, "real" use previous measures
 
         if context_mode == "inject":  # Inject new measures
+            # *2 gives extra weight to non-empty beats
+
             note_durations, scale = kwargs.get("injection_params", DEFAULT_AI_PARAMS["injection_params"])
 
             rhythm_pool = []
-            for rhythm_type in note_durations:
-                # *2 gives extra weight to non-empty beats
-                rhythm_pool.extend({"qb": [self.rhythmDict[(0.0,)]] * 2,  # Quarter
-                                   "lb": [self.rhythmDict[()]],  # Long
-                                    "eb": [self.rhythmDict[(0.0, 0.5)], self.rhythmDict[(0.5,)]] * 2,  # Eighth
-                                    "fb": [self.rhythmDict[(0.0, 0.25, 0.5, 0.75)],  # Sixteenth
-                                           self.rhythmDict[(0.0, 0.25, 0.5)],
-                                           self.rhythmDict[(0.5, 0.75)]] * 2,
-                                    "tb": [self.rhythmDict[(0.0, 0.333, 0.6667)],  # Triplet
-                                           self.rhythmDict[(0.3333, 0.6667)]] * 2, }[rhythm_type])
+            for note_duration in note_durations:
+                rhythm_pool.extend(self.note_durations_dict[note_duration])  # Add selected note durations to pool
 
             context_rhythms = [np.random.choice(rhythm_pool, size=(1, 4)) for _ in range(4)]
 
-            melody_pool = {"maj": [1, 3, 5, 6, 8, 10, 12],  # Major
-                           "min": [1, 3, 4, 6, 8, 10, 11],  # Minor
-                           "pen": [1, 4, 6, 8, 11],  # Pentatonic
-                           "5th": [1, 8]}[scale]  # 5th
-
-            # if len(injection_params) > 2 and injection_params[2]:
+            melody_pool = self.scales_dict[scale]  # Add selected scale to pool
             melody_pool.extend([x + 12 for x in melody_pool])  # Add octave
-
             context_melodies = np.random.choice(melody_pool, size=(1, 4, 48))
 
         else:  # 'real', use real measures from previous bars
@@ -231,7 +248,7 @@ class NeuralNet():
         The user can set the 'sample_mode' and 'chord_mode' in the MusAIc GUI.
         """
         sample_mode = kwargs.get("sample_mode", "dist")  # Either "best", "dist", or "top"
-        chord_mode = kwargs.get("chord_mode", 1)
+        chord_mode = kwargs.get("chord_mode", 1)  # Either "force", "auto", 1, 2, 3, 4
 
         if chord_mode in ("force", "auto"):
             chord_num = 1
@@ -281,25 +298,26 @@ class NeuralNet():
         if not measure or measure.isEmpty():  # Empty bar
             rhythm = [self.rhythmDict[()] for _ in range(4)]
             melody = [random.choice([1, 7]) for _ in range(48)]
+
             return np.array([rhythm]), np.array([[melody]])
 
         rhythm = []
         melody = [-1] * 48
         pcs = []
 
-        onTicks = [False] * 96
+        on_ticks = [False] * 96
         for n in measure.notes:
             try:
                 if n[0] <= 0:
                     continue
-                onTicks[n[1]] = True
+                on_ticks[n[1]] = True
                 melody[n[1] // 2] = n[0] % 12 + 1
                 pcs.append(n[0] % 12 + 1)
             except IndexError:
                 pass
 
         for i in range(4):
-            beat = onTicks[i * 24:(i + 1) * 24]
+            beat = on_ticks[i * 24:(i + 1) * 24]
             word = []
             for j in range(24):
                 if beat[j]:
@@ -307,7 +325,7 @@ class NeuralNet():
             try:
                 rhythm.append(self.rhythmDict[tuple(word)])
             except KeyError:
-                print("[NeuralNet] Beat not found, using eigth note...")
+                print("[NeuralNet] Beat not found, using eight note...")
                 rhythm.append(self.rhythmDict[(0.0, 0.5)])
 
         if len(pcs) == 0:
@@ -319,184 +337,10 @@ class NeuralNet():
 
         return np.array([rhythm]), np.array([[melody]])
 
-    def convertContextToNotes(self, rhythmContext, melodyContext,
-                              chordContexts, kwargs, octave=4):
-
-        def makeNote(pc, startTick, endTick):
-            nn = 12 * (octave + 1) + pc - 1
-            note = (int(nn), startTick, endTick)
-            return note
-
-        def predictChord(notes, pc, sample_mode, melodyContext, metaData, chord_mode="auto"):
-            values = []
-            for k in sorted(metaData.keys()):
-                if k == "ts":
-                    values.extend([4, 4])
-                else:
-                    values.append(metaData[k])
-            md = np.tile(values, (1, 1))
-
-            chord_outputs = self.chordNet.predict(x=[np.array([[pc]]), np.array([[melodyContext]]), md])
-
-            if sample_mode == "dist" or sample_mode == "top":
-                chord = rand.choice(len(chord_outputs[0]), p=chord_outputs[0])
-            else:
-                chord = np.argmax(chord_outputs[0], axis=-1)
-
-            intervals = self.chordDict[chord]
-            if chord_mode == 1:
-                intervals = [rand.choice(intervals)]
-            for interval in intervals:
-                notes.append(makeNote(pc + interval - 12, tick, endTick))
-
-            return notes
-
-        if "meta_data" not in kwargs or kwargs["meta_data"] == None:
-            kwargs["meta_data"] = deepcopy(DEFAULT_META_DATA)
-
-        notes = []
-        onTicks = [False] * 96
-
-        chord_mode = kwargs.get("chord_mode", 1)
-        if chord_mode not in {"force", "auto"}:
-            chord_mode = int(chord_mode)
-
-        # print("[NeuralNet]", "convertContextToNotes", "chord_mode", chord_mode)
-        sample_mode = kwargs.get("sample_mode", "top")
-
-        for i, beat in enumerate(rhythmContext):
-            b = self.rhythmDict[beat]
-            for onset in b:
-                onTicks[int((i + onset) * 24)] = True
-
-        startTicks = [i for i in range(96) if onTicks[i]]
-
-        for i, tick in enumerate(startTicks):
-            try:
-                endTick = startTicks[i + 1]
-            except:
-                endTick = 96
-            pc = melodyContext[i // 2]
-
-            if chord_mode == "force":
-                tonic = 12 + (pc % 12)
-                notes = predictChord(notes, tonic, sample_mode, melodyContext, kwargs["meta_data"])
-            elif chord_mode in (0, 1, "auto"):
-                if pc >= 12:
-                    # Draw chord intervals...
-                    notes = predictChord(notes, pc, sample_mode, melodyContext, kwargs["meta_data"], chord_mode=chord_mode)
-                else:
-                    notes.append(makeNote(pc, tick, endTick))
-
-            else:
-                for chord_pc in chordContexts[i // 2]:
-                    notes.append(makeNote(chord_pc, tick, endTick))
-
-        return notes
-
-
-class TransformerNet(NeuralNet):
-    def __init__(self, resources_path: str = None, init_callbacks: list = None) -> None:
-        """Initialise the Transformer network.
-
-        Changes compared to NeuralNet:
-        - Uses a Transformer instead of an LSTM
-        - Changed try-except to if-else for callbacks
-        """
-        print("[NeuralNet] Initialising...")  # TODO: Change prints to logging
-        self.loaded = False  # Set to true when model is loaded
-        time_start = time.time()
-
-        print("[NeuralNet] === Using SMT22 model ===")
-        self.model = lambda _: 1  # Also needs a .predict(x) method, TODO: implement a model
-        self.model_chords = lambda _: 1  # Also needs a .predict(x) method  TODO: either implement seperate model or use the same model
-
-        self.vocabulary = {"rhythm": 30, "melody": 25}  # Extracted from EuroAI model, TODO: investigate what this is
-
-        fp_training_data = "./src/main/resources/base/euroAI/"  # TODO: Change to parameter
-        with open(os.path.join(fp_training_data, "DataGenerator.conversion_params"), "rb") as f:
-            params_conversion = pickle.load(f)  # TODO: investigate what this is
-
-        with open(os.path.join(fp_training_data, "ChordGenerator.conversion_params"), "rb") as f:
-            params_conversion_chord = pickle.load(f)  # TODO: investigate what this is
-
-        self.rhythmDict = params_conversion["rhythm"]
-        for k, v in list(self.rhythmDict.items()):  # Reverse dict
-            self.rhythmDict[v] = k
-
-        self.chordDict = params_conversion_chord["chords"]
-        for k, v in list(self.chordDict.items()):  # Reverse dict
-            self.chordDict[v] = k
-
-        # Predict some junk data to fully initialise model...
-        _ = self.generateBar(**DEFAULT_SECTION_PARAMS, **DEFAULT_AI_PARAMS)  # TODO: investigate if this is necessary
-
-        print(f"[NeuralNet] Neural network loaded in {int(time.time() - time_start)} seconds")
-
-        self.loaded = True  # Set to true when model is loaded
-
-        if init_callbacks:  # Call any callbacks
-            # Check if iterable
-            if not hasattr(init_callbacks, "__iter__"):
-                init_callbacks = [init_callbacks]
-
-            for f in init_callbacks:
-                f()
-
-    def generateBar(self, octave: int = 4, **kwargs) -> list:
-        """Generate a bar of music.
-
-        Currently just random notes for testing.
-        In the future this will be replaced with a call to the Transformer model.
-        """
-        # Preprocess input
-        context_rhythms, context_melodies = self.getContexts(kwargs)
-        meta_data_embedded = self.embedMetaData(kwargs["meta_data"])  # Data has not been run through embedding layer yet
-        lead_rhythm, lead_melody = self.getLead(kwargs, context_rhythms, context_melodies)
-
-        model_input = [*context_rhythms, context_melodies, meta_data_embedded,
-                       lead_rhythm, lead_melody]  # Original model uses a list of inputs
-
-        # Write model input to file for debugging
-        with open("model_input.txt", "w+") as f:
-            for name, i in zip(["context_rhythms", "context_melodies", "meta_data_embedded", "lead_rhythm", "lead_melody"],
-                               [context_rhythms, context_melodies, meta_data_embedded, lead_rhythm, lead_melody]):
-                f.write(f"{name}:\n{i}\n\n")
-
-        # model_output = self.model.predict(x=model_input)  # TODO: implement model
-        # sampled_rhythm, sampled_melody, sampled_chords = self.sampleOutput(model_output, kwargs)  # Postprocess output
-        # return_val = self.convertContextToNotes(sampled_rhythm[0], sampled_melody[0], sampled_chords, kwargs, octave=octave)
-
-        # Temporary random notes
-        notes = []
-        for i in range(4):
-            note = (random.randint(60, 80), i * 24, (i + 1) * 24)  # pitch, start tick, end tick
-            notes.append(note)
-
-        return notes
-
-    def embedMetaData(self, meta_data: dict = None) -> np.ndarray:
-        """Preprocess meta data into a format that can be used by the model.
-
-        Changes compared to NeuralNet:
-        - Removed the predict function from meta embedding, this enables the processed data to be used by the model.
-        """
-        if not meta_data:
-            meta_data = DEFAULT_META_DATA
-
-        values = []
-        for k in sorted(meta_data.keys()):
-            if k == "ts":
-                values.extend([4, 4])
-            else:
-                values.append(meta_data[k])
-
-        return np.tile(values, (1, 1))
-
-    def makeNote(self, pc, tick_start, tick_end, octave: int = 4) -> tuple:
+    def makeNote(self, pc: Union[int, float], tick_start: int, tick_end: int, octave: int = 4) -> tuple:
         """Convert a pitch class to a note.
 
-        Changes compared to NeuralNet:
+        Changes compared to original implementation:
         - Moved function outside convertContextToNotes
         - Added octave parameter, default 4
         """
@@ -507,22 +351,21 @@ class TransformerNet(NeuralNet):
                      octave: int = 4, tick: int = 0, tick_end: int = 96) -> list:
         """Predict a chord using the chordNet.
 
-        Changes compared to NeuralNet:
-        - embedMetaData is called here to replace duplicate code
-        - Moved functions outside convertContextToNotes
+        Changes compared to original implementation:
+        - preprocessMetaData is called here to replace duplicate code
+        - Moved function outside convertContextToNotes
         """
-        meta_data_processed = self.embedMetaData(meta_data)
+        meta_data_processed = self.preprocessMetaData(meta_data)
 
         model_input = [np.array([[pc]]), np.array([[context_melody]]), meta_data_processed]
-        chord_outputs = self.model_chords.predict(x=model_input)  # TODO: implement model or remove
+        model_output = self.model_chords.predict(x=model_input)
 
         if sample_mode in ("dist", "top"):
-            chord = rand.choice(len(chord_outputs[0]), p=chord_outputs[0])
+            chord = rand.choice(len(model_output[0]), p=model_output[0])
         else:  # When sample mode is "best"
-            chord = np.argmax(chord_outputs[0], axis=-1)
+            chord = np.argmax(model_output[0], axis=-1)
 
         intervals = self.chordDict[chord]
-
         if chord_mode == 1:
             intervals = [rand.choice(intervals)]
 
@@ -537,22 +380,21 @@ class TransformerNet(NeuralNet):
         Changes compared to NeuralNet:
         - Provide the chord_mode to predictChord when the chord_mode is "force"
         - Moved functions outside convertContextToNotes
-        - Removed the try except block and replaced with if-else to check if we"re at the end of the list
+        - Removed the try except block and replaced with if-else to check if we're at the end of the list
         """
         if "meta_data" not in kwargs or kwargs["meta_data"] is None:
             kwargs["meta_data"] = deepcopy(DEFAULT_META_DATA)
 
-        chord_mode = kwargs.get("chord_mode", 1)
-        sample_mode = kwargs.get("sample_mode", "top")
+        chord_mode = kwargs.get("chord_mode", 1)  # Either "force", "auto", 1, 2, 3, 4
+        sample_mode = kwargs.get("sample_mode", "top")  # Either "best", "dist", or "top"
 
         if chord_mode not in ("force", "auto"):
             chord_mode = int(chord_mode)
 
         ticks_on = [False] * 96
         for i, beat in enumerate(context_rhythm):
-            b = self.rhythmDict[beat]
-            for onset in b:
-                ticks_on[int((i + onset) * 24)] = True
+            for onset in self.rhythmDict[beat]:
+                ticks_on[int(i + onset) * 24] = True
 
         ticks_start = [i for i in range(96) if ticks_on[i]]
 
@@ -560,7 +402,6 @@ class TransformerNet(NeuralNet):
         for i, tick in enumerate(ticks_start):
             # Removed the try-except block and replaced with if-else
             ticks_end = ticks_start[i + 1] if i + 1 < len(ticks_start) else 96
-
             pc = context_melody[i // 2]
 
             if chord_mode == "force":
@@ -581,6 +422,99 @@ class TransformerNet(NeuralNet):
             else:  # Only use predicted chords if chord_mode is not {force, auto, 0, 1}
                 for chord_pc in context_chords[i // 2]:
                     notes.append(self.makeNote(chord_pc, tick, ticks_end, octave=octave))
+
+        return notes
+
+
+class TransformerNet(NeuralNet):
+    def __init__(self, resources_path: str = None, init_callbacks: list = None) -> None:
+        """Initialise the Transformer network.
+
+        Changes compared to NeuralNet:
+        - Uses a Transformer instead of an LSTM
+        - Changed try-except to if-else for callbacks
+        """
+        print("[NeuralNet] Initialising...")  # TODO: Change prints to logging
+        self.loaded = False  # Set to true when model is loaded
+        time_start = time.time()
+
+        print("[NeuralNet] === Using SMT22 model ===")
+        self.model = lambda _: 1  # Also needs a .predict(x) method, TODO: implement a model
+        self.model_chords = lambda _: 1  # Also needs a .predict(x) method  TODO: either implement seperate model or use the same model
+
+        fp_training_data = "./src/main/resources/base/euroAI/"  # TODO: Change to parameter
+        with open(os.path.join(fp_training_data, "DataGenerator.conversion_params"), "rb") as f:
+            params_conversion = pickle.load(f)  # TODO: investigate what this is
+
+        with open(os.path.join(fp_training_data, "ChordGenerator.conversion_params"), "rb") as f:
+            params_conversion_chord = pickle.load(f)  # TODO: investigate what this is
+
+        self.rhythmDict = params_conversion["rhythm"]
+        for k, v in list(self.rhythmDict.items()):  # Reverse dict
+            self.rhythmDict[v] = k
+
+        self.chordDict = params_conversion_chord["chords"]
+        for k, v in list(self.chordDict.items()):  # Reverse dict
+            self.chordDict[v] = k
+
+        self.vocabulary = {"rhythm": 30, "melody": 25}  # Extracted from EuroAI model, TODO: investigate what this is
+
+        self.note_durations_dict = {"qb": [self.rhythmDict[(0.0,)]] * 2,  # Quarter
+                                    "lb": [self.rhythmDict[()]],  # Long
+                                    "eb": [self.rhythmDict[(0.0, 0.5)], self.rhythmDict[(0.5,)]] * 2,  # Eighth
+                                    "fb": [self.rhythmDict[(0.0, 0.25, 0.5, 0.75)],  # Sixteenth
+                                           self.rhythmDict[(0.0, 0.25, 0.5)],
+                                           self.rhythmDict[(0.5, 0.75)]] * 2,
+                                    "tb": [self.rhythmDict[(0.0, 0.333, 0.6667)],  # Triplet
+                                           self.rhythmDict[(0.3333, 0.6667)]] * 2, }
+
+        self.scales_dict = {"maj": [1, 3, 5, 6, 8, 10, 12],  # Major
+                            "min": [1, 3, 4, 6, 8, 10, 11],  # Minor
+                            "pen": [1, 4, 6, 8, 11],  # Pentatonic
+                            "5th": [1, 8]}  # 5th
+
+        # Predict some junk data to fully initialise model...
+        _ = self.generateBar(**DEFAULT_SECTION_PARAMS, **DEFAULT_AI_PARAMS)  # TODO: investigate if this is necessary
+
+        print(f"[NeuralNet] Neural network loaded in {int(time.time() - time_start)} seconds")
+
+        self.loaded = True  # Set to true when model is loaded
+
+        if init_callbacks:  # Call any callbacks
+            if not hasattr(init_callbacks, "__iter__"):  # Check if iterable
+                init_callbacks = [init_callbacks]
+
+            for f in init_callbacks:
+                f()
+
+    def generateBar(self, octave: int = 4, **kwargs) -> list:
+        """Generate a bar of music.
+
+        Currently just random notes for testing.
+        In the future this will be replaced with a call to the Transformer model.
+        """
+        # Preprocess input
+        context_rhythms, context_melodies = self.getContexts(kwargs)
+        meta_data_preprocessed = self.preprocessMetaData(kwargs["meta_data"])  # Data has not been run through embedding layer yet
+        lead_rhythm, lead_melody = self.getLead(kwargs, context_rhythms, context_melodies)
+
+        model_input = [*context_rhythms, context_melodies, meta_data_preprocessed, lead_rhythm, lead_melody]
+
+        # TEMP: Write model input to file for debugging
+        with open("model_input.txt", "w+") as f:
+            for name, i in zip(["context_rhythms", "context_melodies", "meta_data_embedded", "lead_rhythm", "lead_melody"],
+                               [context_rhythms, context_melodies, meta_data_preprocessed, lead_rhythm, lead_melody]):
+                f.write(f"{name}:\n{i}\n\n")
+
+        # model_output = self.model.predict(x=model_input)  # TODO: implement model
+        # sampled_rhythm, sampled_melody, sampled_chords = self.sampleOutput(model_output, kwargs)  # Postprocess output
+        # return_val = self.convertContextToNotes(sampled_rhythm[0], sampled_melody[0], sampled_chords, kwargs, octave=octave)
+
+        # Temporary random notes
+        notes = []
+        for i in range(4):
+            note = (random.randint(60, 80), i * 24, (i + 1) * 24)  # pitch, start tick, end tick
+            notes.append(note)
 
         return notes
 
