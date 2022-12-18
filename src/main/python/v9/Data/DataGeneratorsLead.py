@@ -33,9 +33,15 @@ class DataGenerator:
         if self.to_list:
             self.raw_songs = []
 
+        if os.name == "nt":
+            # Only do this if we're on Windows, this is a hack to make the pickle files work on Windows
+            # They were saved on Linux, and the PosixPath class is not available on Windows
+            import pathlib
+            temp = pathlib.PosixPath  # Save the PosixPath class for later to restore it
+            pathlib.PosixPath = pathlib.WindowsPath
+
         for f in files:
             fp = self.path / f
-
             with open(fp, "rb") as handle:
                 songs = pickle.load(handle)
 
@@ -43,6 +49,9 @@ class DataGenerator:
                     if self.to_list:
                         self.raw_songs.append(s)
                     yield s
+
+        if os.name == "nt":
+            pathlib.PosixPath = temp  # Restore the PosixPath class
 
     def get_songs(self, getitem_function, with_metaData=True):
         for song in self.load_songs():
