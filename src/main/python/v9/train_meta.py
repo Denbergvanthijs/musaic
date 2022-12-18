@@ -22,10 +22,10 @@ def gen_meta(comb_gen_instance):
             return
 
 
-def gen_preds_and_meta(comb_gen_instance, meta_embedder,
-                       forever=False):
+def gen_preds_and_meta(comb_gen_instance, meta_embedder, forever=False):
     data_generator = comb_gen_instance.generate_data()
     null = meta_embedder.predict(np.zeros((1, 10)))
+
     while True:
         try:
             x, y = next(data_generator)
@@ -33,11 +33,12 @@ def gen_preds_and_meta(comb_gen_instance, meta_embedder,
             rs_one_hot, ms_one_hot = y
 
             rand_alph = rand.randint(1, 10)
-            def cur_alphs(v): return (v * rand_alph) + 1
-            rs_noisy = np.asarray([[dirichlet_noise(r_cat, cur_alphs)
-                                    for r_cat in bar] for bar in rs_one_hot])
-            ms_noisy = np.asarray([[dirichlet_noise(m_cat, cur_alphs)
-                                    for m_cat in bar] for bar in ms_one_hot])
+
+            def cur_alphs(v):
+                return (v * rand_alph) + 1
+
+            rs_noisy = np.asarray([[dirichlet_noise(r_cat, cur_alphs) for r_cat in bar] for bar in rs_one_hot])
+            ms_noisy = np.asarray([[dirichlet_noise(m_cat, cur_alphs) for m_cat in bar] for bar in ms_one_hot])
 
             embedded = meta_embedder.predict(meta)
             padded = np.vstack([null, embedded[:-1]])
@@ -46,6 +47,7 @@ def gen_preds_and_meta(comb_gen_instance, meta_embedder,
 
         except IndexError:
             continue
+
         except StopIteration:
             if not forever:
                 return
@@ -54,39 +56,27 @@ def gen_preds_and_meta(comb_gen_instance, meta_embedder,
 
 
 if __name__ == "__main__":
-
     top_dir = "Trainings"
+    fp_combined_generator = "./src/main/python/v9/Data/lessfiles"
 
     save_dir = asctime().split()
     save_dir = "_".join([*save_dir[0:3], *save_dir[3].split(":")[:2]])
-    cg = CombinedGenerator("Data/lessfiles",
-                           save_conversion_params=False,
-                           to_list=False)
 
+    cg = CombinedGenerator(fp_combined_generator, save_conversion_params=False, to_list=False)
     cg.get_num_pieces()
 
     meta_examples = rand.permutation(np.vstack(list(gen_meta(cg))))
+    meta_emb, eval_results = get_meta_embedder(meta_examples, embed_size=9, epochs=30, evaluate=True, verbose=1)
 
-    meta_emb, eval_results = get_meta_embedder(meta_examples,
-                                               embed_size=9,
-                                               epochs=30,
-                                               evaluate=True, verbose=1)
-
-    print("MetaEmbedding trained!\n\tevaluation results:\n\t",
-          eval_results)
+    print("MetaEmbedding trained!\n\tevaluation results:\n\t", eval_results)
 
     pred_meta_gen = gen_preds_and_meta(cg, meta_emb, forever=True)
 
     r_params = (None, cg.rhythm_V)
     m_params = (48, cg.melody_V)
 
-    mp = MetaPredictor(r_params, m_params, meta_emb.embed_size,
-                       8, 12)
-
-    mp.fit_generator(pred_meta_gen,
-                     steps_per_epoch=cg.num_pieces,
-                     epochs=4)
+    mp = MetaPredictor(r_params, m_params, meta_emb.embed_size, 8, 12)
+    mp.fit_generator(pred_meta_gen, steps_per_epoch=cg.num_pieces, epochs=4)
 
     meta_emb.save_model_custom("/".join([top_dir, save_dir, "meta"]))
-
     mp.save_model_custom("/".join([top_dir, save_dir, "meta"]))
