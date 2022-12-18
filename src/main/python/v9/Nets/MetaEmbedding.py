@@ -101,29 +101,30 @@ class MetaTrainer(Model):
                      metrics=[mean_absolute_error])
 
 
-def get_meta_embedder(meta_samples, embed_size, epochs=1000,
-                      evaluate=True, verbose=1):
+def get_meta_embedder(meta_samples, embed_size, epochs: int = 1_000, evaluate: bool = True, verbose: bool = 1):
+    """Get a meta embedding model from a set of meta samples.
+
+    Changes compared to the original implementation:
+    - Evaluation verbose level increased to 1
+    """
     N, meta_len = meta_samples.shape
     meta_samples = rand.permutation(meta_samples)
 
-    meta_emb = MetaEmbedding(meta_len, embed_size, compile_now=True)
-    meta_trainer = MetaTrainer(meta_emb)
+    meta_embedding = MetaEmbedding(meta_len, embed_size, compile_now=True)
+    meta_trainer = MetaTrainer(meta_embedding)
 
     if evaluate:
         train_n = int(N * 0.8)
-        meta_trainer.fit(x=meta_samples[:train_n],
-                         y=meta_samples[:train_n],
-                         epochs=epochs, verbose=verbose)
-        eval_results = meta_trainer.evaluate(x=meta_samples[train_n:],
-                                             y=meta_samples[train_n:],
-                                             verbose=0)
+        meta_trainer.fit(x=meta_samples[:train_n], y=meta_samples[:train_n], epochs=epochs, verbose=verbose)
+
+        eval_results = meta_trainer.evaluate(x=meta_samples[train_n:], y=meta_samples[train_n:], verbose=verbose)
         eval_results = dict(zip(meta_trainer.metrics_names, eval_results))
 
-    meta_emb.freeze()
-    meta_emb.compile_default()
-    meta_emb._make_predict_function()
+    meta_embedding.freeze()
+    meta_embedding.compile_default()
+    meta_embedding._make_predict_function()
 
     if evaluate:
-        return meta_emb, eval_results
+        return meta_embedding, eval_results
     else:
-        return meta_emb
+        return meta_embedding

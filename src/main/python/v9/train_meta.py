@@ -1,3 +1,4 @@
+import os
 from time import asctime
 
 import numpy as np
@@ -56,27 +57,30 @@ def gen_preds_and_meta(comb_gen_instance, meta_embedder, forever=False):
 
 
 if __name__ == "__main__":
-    top_dir = "Trainings"
+    save_dir = asctime().split()
+    save_dir = "_".join([*save_dir[0:3], *save_dir[3].split(":")])
+
+    fp_save_dir = os.path.join("./src/main/python/v9/Trainings", save_dir, "meta")
     fp_combined_generator = "./src/main/python/v9/Data/lessfiles"
 
-    save_dir = asctime().split()
-    save_dir = "_".join([*save_dir[0:3], *save_dir[3].split(":")[:2]])
+    if not os.path.exists(fp_save_dir):
+        os.makedirs(fp_save_dir)
 
-    cg = CombinedGenerator(fp_combined_generator, save_conversion_params=False, to_list=False)
-    cg.get_num_pieces()
+    combined_generator = CombinedGenerator(fp_combined_generator, save_conversion_params=False, to_list=False)
+    _ = combined_generator.get_num_pieces()
 
-    meta_examples = rand.permutation(np.vstack(list(gen_meta(cg))))
-    meta_emb, eval_results = get_meta_embedder(meta_examples, embed_size=9, epochs=30, evaluate=True, verbose=1)
+    meta_examples = rand.permutation(np.vstack(list(gen_meta(combined_generator))))
+    meta_embedder, eval_results = get_meta_embedder(meta_examples, embed_size=9, epochs=30, evaluate=True, verbose=1)
 
-    print("MetaEmbedding trained!\n\tevaluation results:\n\t", eval_results)
+    print(f"MetaEmbedding trained!\n\tevaluation results:\n\t{eval_results}")
 
-    pred_meta_gen = gen_preds_and_meta(cg, meta_emb, forever=True)
+    pred_meta_gen = gen_preds_and_meta(combined_generator, meta_embedder, forever=True)
 
-    r_params = (None, cg.rhythm_V)
-    m_params = (48, cg.melody_V)
+    params_rhythm = (None, combined_generator.rhythm_V)
+    params_melody = (48, combined_generator.melody_V)
 
-    mp = MetaPredictor(r_params, m_params, meta_emb.embed_size, 8, 12)
-    mp.fit_generator(pred_meta_gen, steps_per_epoch=cg.num_pieces, epochs=4)
+    meta_predictor = MetaPredictor(params_rhythm, params_melody, meta_embedder.embed_size, 8, 12)
+    meta_predictor.fit_generator(pred_meta_gen, steps_per_epoch=combined_generator.num_pieces, epochs=4)
 
-    meta_emb.save_model_custom("/".join([top_dir, save_dir, "meta"]))
-    mp.save_model_custom("/".join([top_dir, save_dir, "meta"]))
+    meta_embedder.save_model_custom(fp_save_dir)
+    meta_predictor.save_model_custom(fp_save_dir)

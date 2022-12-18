@@ -23,6 +23,11 @@ class DataGenerator:
         self.params_saved = False
 
     def load_songs(self):
+        """Loads songs from the pickle files in self.path.
+
+        Changes from the original implementation:
+        - Added support for Windows
+        """
         if self.raw_songs:
             if self.raw_songs and not self.to_list:
                 raise ValueError("DataGenerator.load_songs: self.raw_songs but not self.to_list!")
