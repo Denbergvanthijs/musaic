@@ -3,9 +3,9 @@ import json
 import keras.backend as K
 from keras.layers import Input, Lambda
 from keras.models import Model
-from v9.Nets.MelodyNetwork import MelodyNetwork
-from v9.Nets.RhythmEncoder import BarEmbedding
-from v9.Nets.RhythmNetwork import RhythmNetwork
+from Nets.MelodyNetwork import MelodyNetwork
+from Nets.RhythmEncoder import BarEmbedding
+from Nets.RhythmNetwork import RhythmNetwork
 
 
 class CombinedNetwork(Model):
