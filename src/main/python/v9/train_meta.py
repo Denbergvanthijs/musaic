@@ -60,11 +60,11 @@ if __name__ == "__main__":
     save_dir = asctime().split()
     save_dir = "_".join([*save_dir[0:3], *save_dir[3].split(":")])
 
-    fp_save_dir = os.path.join("./src/main/python/v9/Trainings", save_dir, "meta")
+    fp_meta = os.path.join("./src/main/python/v9/Trainings", save_dir, "meta")
     fp_combined_generator = "./src/main/python/v9/Data/lessfiles"
 
-    if not os.path.exists(fp_save_dir):
-        os.makedirs(fp_save_dir)
+    if not os.path.exists(fp_meta):
+        os.makedirs(fp_meta)
 
     combined_generator = CombinedGenerator(fp_combined_generator, save_conversion_params=False, to_list=False)
     _ = combined_generator.get_num_pieces()
@@ -82,5 +82,5 @@ if __name__ == "__main__":
     meta_predictor = MetaPredictor(params_rhythm, params_melody, meta_embedder.embed_size, 8, 12)
     meta_predictor.fit_generator(pred_meta_gen, steps_per_epoch=combined_generator.num_pieces, epochs=4)
 
-    meta_embedder.save_model_custom(fp_save_dir)
-    meta_predictor.save_model_custom(fp_save_dir)
+    meta_embedder.save_model_custom(fp_meta)
+    meta_predictor.save_model_custom(fp_meta)
