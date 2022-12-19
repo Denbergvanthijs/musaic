@@ -37,7 +37,7 @@ if __name__ == "__main__":
     meta_predictor = MetaPredictor.from_saved_custom(fp_meta)
     meta_predictor.freeze()
 
-    chord_generator = ChordGenerator(fp_music, save_conversion_params=fp_input, to_list=False, meta_prep_f=None)
+    chord_generator = ChordGenerator(fp_music, save_conversion_params=fp_output, to_list=False, meta_prep_f=None)
     # data_iter = chord_generator.generate_forever(batch_size=24)
     x, y = chord_generator.list_data()
 

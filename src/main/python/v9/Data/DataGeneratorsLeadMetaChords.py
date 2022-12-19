@@ -1,66 +1,16 @@
 import pickle
 import random
-from fractions import Fraction
 from itertools import tee
-from pathlib import Path
 
 import numpy as np
-from Data.DataGeneratorsLead import DataGenerator as DataGeneratorBase
+from Data.DataGeneratorsLeadMeta import DataGenerator as DataGeneratorBase
 from Data.utils import label
 from keras.utils import to_categorical
 
 
 class DataGenerator(DataGeneratorBase):
     def __init__(self, path, save_conversion_params=None, to_list=False, meta_prep_f=None):
-        self.path = Path(path).resolve()
-        self.num_pieces = None
-        self.to_list = to_list
-        self.raw_songs = None
-
-        self.conversion_params = dict()
-        self.save_params_eager = True if save_conversion_params else False
-        self.save_dir = save_conversion_params
-        self.params_saved = False
-
-        self.meta_f = meta_prep_f
-
-    def prepare_metaData(self, metaData, repeat=0):
-        if not "metaData" in self.conversion_params:
-            self.conversion_params["metaData"] = sorted(metaData.keys())
-            if self.save_params_eager:
-                self.save_conversion_params()
-        meta_keys = self.conversion_params["metaData"]
-
-        if not meta_keys == sorted(metaData.keys()):
-            raise ValueError("DataGenerator.prepare_metaData received metaData with different keys!")
-
-        values = np.zeros(shape=(10,))
-
-        i = 0
-        for k in meta_keys:
-            if k == "ts":
-                frac = Fraction(metaData[k], _normalize=False)
-                # values.extend([frac.numerator, frac.denominator])
-                values[i: i + 2] = [frac.numerator, frac.denominator]
-                i += 2
-            else:
-                assert isinstance(metaData[k], (float, int))
-                values[i] = metaData[k]
-                i += 1
-
-        if len(values) != 10:
-            raise ValueError("DataGenerator.prepare_metaData: Expected metaData of length 10," +
-                             " recieved length {}, \nMetaData: {}".format(len(values), metaData))
-
-        if not repeat:
-            cur_meta = np.asarray(values, dtype="float")
-        else:
-            cur_meta = np.repeat(np.asarray([values], dtype="float"), repeat, axis=0)
-
-        if self.meta_f:
-            return self.meta_f(cur_meta.reshape(1, -1)).reshape((-1,))
-
-        return cur_meta
+        super().__init__(path, save_conversion_params, to_list, meta_prep_f)
 
     def save_conversion_params(self, filename=None):
         if not self.conversion_params:
@@ -69,10 +19,10 @@ class DataGenerator(DataGeneratorBase):
         if not filename:
             filename = self.save_dir + "/" + "DataGenerator.conversion_params"
 
-        print("CONVERSION PARAMS SAVED TO " + filename)
-
         with open(filename, "wb") as handle:
             pickle.dump(self.conversion_params, handle)
+
+        print("CONVERSION PARAMS SAVED TO " + filename)
 
 
 class RhythmGenerator(DataGenerator):

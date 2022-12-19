@@ -120,10 +120,11 @@ class DataGenerator:
         if not filename:
             filename = "DataGenerator.conversion_params"
 
-        print("CONVERSION PARAMS SAVED TO" + " Data/" + filename)
-
-        with open(os.path.join("Data", filename), "wb") as handle:
+        save_dir = os.path.join("Data", filename)
+        with open(save_dir, "wb") as handle:
             pickle.dump(self.conversion_params, handle)
+
+        print(f"CONVERSION PARAMS SAVED TO {save_dir}")
 
 
 class RhythmGenerator(DataGenerator):

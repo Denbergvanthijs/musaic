@@ -3,17 +3,17 @@ import pickle
 import random
 from fractions import Fraction
 from itertools import tee
+from pathlib import Path
 
 import numpy as np
-import numpy.random as rand
+from Data.DataGeneratorsLead import DataGenerator as DataGeneratorBase
+from Data.utils import label
 from keras.utils import to_categorical
-from v9.Data.utils import label
 
 
-class DataGenerator:
-    def __init__(self, path, save_conversion_params=None,
-                 to_list=False, meta_prep_f=None):
-        self.path = path
+class DataGenerator(DataGeneratorBase):
+    def __init__(self, path, save_conversion_params=None, to_list=False, meta_prep_f=None):
+        self.path = Path(path).resolve()
         self.num_pieces = None
         self.to_list = to_list
         self.raw_songs = None
@@ -24,49 +24,6 @@ class DataGenerator:
         self.params_saved = False
 
         self.meta_f = meta_prep_f
-
-    def load_songs(self):
-        if self.raw_songs:
-            if self.raw_songs and not self.to_list:
-                raise ValueError("DataGenerator.load_songs:" +
-                                 "self.raw_songs but not self.to_list!")
-            return self.raw_songs
-
-        files = os.listdir(self.path)
-
-        if self.to_list:
-            self.raw_songs = []
-
-        # print("LOADING FILES AS" + repr(self))
-        for f in files:
-            with open(self.path + "/" + f, "rb") as handle:
-                songs = pickle.load(handle)
-                for s in songs:
-                    if self.to_list:
-                        self.raw_songs.append(s)
-                    yield s
-
-    def get_songs(self, getitem_function, with_metaData=True):
-        for song in self.load_songs():
-            for i in range(song["instruments"]):
-                if with_metaData:
-                    yield getitem_function(song[i]), song[i]["metaData"]
-                else:
-                    yield getitem_function(song[i])
-
-    def get_songs_together(self, getitem_function, with_metaData=True):
-        for song in self.load_songs():
-            num_ins = song["instruments"]
-            if with_metaData:
-                yield [(getitem_function(song[i]),
-                        song[i]["metaData"]) for i in range(num_ins)]
-            else:
-                yield [getitem_function(song[i]) for i in range(num_ins)]
-
-    def get_num_pieces(self):
-        instrument_nums = [song["instruments"] for song in self.load_songs()]
-        self.num_pieces = sum(instrument_nums)
-        return instrument_nums
 
     def prepare_metaData(self, metaData, repeat=0):
         if not "metaData" in self.conversion_params:
@@ -102,24 +59,9 @@ class DataGenerator:
             cur_meta = np.repeat(np.asarray([values], dtype="float"), repeat, axis=0)
 
         if self.meta_f:
-            cur_meta = self.meta_f(cur_meta.reshape(1, -1)).reshape((-1,))
+            return self.meta_f(cur_meta.reshape(1, -1)).reshape((-1,))
+
         return cur_meta
-
-    def random_stream(self):
-        instrument_nums = self.get_num_pieces()
-
-        for n_ins in instrument_nums:
-            yield rand.randint(n_ins)
-
-    def generate_forever(self, **generate_params):
-        rand_inds = self.random_stream()
-        data_gen = self.generate_data(random_stream=rand_inds, **generate_params)
-
-        while True:
-            yield from data_gen
-
-            rand_inds = self.random_stream()
-            data_gen = self.generate_data(random_stream=rand_inds, **generate_params)
 
     def save_conversion_params(self, filename=None):
         if not self.conversion_params:
@@ -128,10 +70,11 @@ class DataGenerator:
         if not filename:
             filename = "DataGenerator.conversion_params"
 
-        print("CONVERSION PARAMS SAVED TO " + self.save_dir + "/" + filename)
-
-        with open(self.save_dir + "/" + filename, "wb") as handle:
+        save_dir = os.path.join(self.save_dir, filename)
+        with open(save_dir, "wb") as handle:
             pickle.dump(self.conversion_params, handle)
+
+        print(f"CONVERSION PARAMS SAVED TO {save_dir}")
 
 
 class RhythmGenerator(DataGenerator):
