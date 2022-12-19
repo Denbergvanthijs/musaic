@@ -3,15 +3,16 @@ import pickle
 import random
 from copy import deepcopy
 from fractions import Fraction
+from pathlib import Path
 
 import numpy as np
+from Data.utils import label
 from keras.utils import to_categorical
-from v9.Data.utils import label
 
 
 class DataGenerator:
-    def __init__(self, path, save_conversion_params=True, to_list=False):
-        self.path = path
+    def __init__(self, path: str, save_conversion_params: bool = True, to_list: bool = False) -> None:
+        self.path = Path(path).resolve()
         self.num_pieces = None
         self.to_list = to_list
         self.raw_songs = None
@@ -21,10 +22,14 @@ class DataGenerator:
         self.params_saved = False
 
     def load_songs(self):
+        """Loads songs from the pickle files in self.path.
+
+        Changes from the original implementation:
+        - Added support for Windows
+        """
         if self.raw_songs:
             if self.raw_songs and not self.to_list:
-                raise ValueError("DataGenerator.load_songs:" +
-                                 "self.raw_songs but not self.to_list!")
+                raise ValueError("DataGenerator.load_songs: self.raw_songs but not self.to_list!")
             return self.raw_songs
 
         files = os.listdir(self.path)
@@ -32,13 +37,25 @@ class DataGenerator:
         if self.to_list:
             self.raw_songs = []
 
+        if os.name == "nt":
+            # Only do this if we're on Windows, this is a hack to make the pickle files work on Windows
+            # They were saved on Linux, and the PosixPath class is not available on Windows
+            import pathlib
+            temp = pathlib.PosixPath  # Save the PosixPath class for later to restore it
+            pathlib.PosixPath = pathlib.WindowsPath
+
         for f in files:
-            with open(self.path + "/" + f, "rb") as handle:
+            fp = self.path / f
+            with open(fp, "rb") as handle:
                 songs = pickle.load(handle)
+
                 for s in songs:
                     if self.to_list:
                         self.raw_songs.append(s)
                     yield s
+
+        if os.name == "nt":
+            pathlib.PosixPath = temp  # Restore the PosixPath class
 
     def get_songs(self, getitem_function, with_metaData=True):
         for song in self.load_songs():
@@ -78,8 +95,8 @@ class DataGenerator:
                 i += 1
 
         if len(values) != 10:
-            raise ValueError("DataGenerator.prepare_metaData: Expected metaData of length 10," +
-                             " recieved length {}, \nMetaData: {}".format(len(values), metaData))
+            raise ValueError(
+                f"DataGenerator.prepare_metaData: Expected metaData of length 10, received length {len(values)}, \nMetaData: {metaData}")
 
         if not repeat:
             return np.asarray(values, dtype="float")
@@ -105,7 +122,7 @@ class DataGenerator:
 
         print("CONVERSION PARAMS SAVED TO" + " Data/" + filename)
 
-        with open("Data/" + filename, "wb") as handle:
+        with open(os.path.join("Data", filename), "wb") as handle:
             pickle.dump(self.conversion_params, handle)
 
 
