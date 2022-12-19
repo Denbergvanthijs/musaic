@@ -1,70 +1,16 @@
-import os
-import pickle
 import random
-from fractions import Fraction
 from itertools import tee
-from pathlib import Path
 
 import numpy as np
 import numpy.random as rand
+from Data.DataGenerators import DataGenerator as DataGeneratorBase
 from Data.utils import label
 from keras.utils import to_categorical
 
 
-class DataGenerator:
+class DataGenerator(DataGeneratorBase):
     def __init__(self, path: str, save_conversion_params: bool = True, to_list: bool = False) -> None:
-        self.path = Path(path).resolve()
-        self.num_pieces = None
-        self.to_list = to_list
-        self.raw_songs = None
-
-        self.conversion_params = dict()
-        self.save_params_eager = save_conversion_params
-        self.params_saved = False
-
-    def load_songs(self):
-        """Loads songs from the pickle files in self.path.
-
-        Changes from the original implementation:
-        - Added support for Windows
-        """
-        if self.raw_songs:
-            if self.raw_songs and not self.to_list:
-                raise ValueError("DataGenerator.load_songs: self.raw_songs but not self.to_list!")
-            return self.raw_songs
-
-        files = os.listdir(self.path)
-
-        if self.to_list:
-            self.raw_songs = []
-
-        if os.name == "nt":
-            # Only do this if we're on Windows, this is a hack to make the pickle files work on Windows
-            # They were saved on Linux, and the PosixPath class is not available on Windows
-            import pathlib
-            temp = pathlib.PosixPath  # Save the PosixPath class for later to restore it
-            pathlib.PosixPath = pathlib.WindowsPath
-
-        for f in files:
-            fp = self.path / f
-            with open(fp, "rb") as handle:
-                songs = pickle.load(handle)
-
-                for s in songs:
-                    if self.to_list:
-                        self.raw_songs.append(s)
-                    yield s
-
-        if os.name == "nt":
-            pathlib.PosixPath = temp  # Restore the PosixPath class
-
-    def get_songs(self, getitem_function, with_metaData=True):
-        for song in self.load_songs():
-            for i in range(song["instruments"]):
-                if with_metaData:
-                    yield getitem_function(song[i]), song[i]["metaData"]
-                else:
-                    yield getitem_function(song[i])
+        super().__init__(path, save_conversion_params, to_list)
 
     def get_songs_together(self, getitem_function, with_metaData=True):
         for song in self.load_songs():
@@ -74,72 +20,11 @@ class DataGenerator:
             else:
                 yield [getitem_function(song[i]) for i in range(num_ins)]
 
-    def get_num_pieces(self):
-        instrument_nums = [song["instruments"] for song in self.load_songs()]
-        self.num_pieces = sum(instrument_nums)
-        return instrument_nums
-
-    def prepare_metaData(self, metaData, repeat=0):
-        if not "metaData" in self.conversion_params:
-            self.conversion_params["metaData"] = sorted(metaData.keys())
-
-            if self.save_params_eager:
-                self.save_conversion_params()
-
-        meta_keys = self.conversion_params["metaData"]
-
-        if not meta_keys == sorted(metaData.keys()):
-            raise ValueError("DataGenerator.prepare_metaData received metaData with different keys!")
-
-        i = 0
-        values = np.zeros(shape=(10,))
-        for k in meta_keys:
-            if k == "ts":
-                frac = Fraction(metaData[k], _normalize=False)
-                # values.extend([frac.numerator, frac.denominator])
-                values[i: i + 2] = [frac.numerator, frac.denominator]
-                i += 2
-            else:
-                assert isinstance(metaData[k], (float, int))
-                values[i] = metaData[k]
-                i += 1
-
-        if len(values) != 10:
-            raise ValueError(
-                f"DataGenerator.prepare_metaData: Expected metaData of length 10, received length {len(values)}, \nMetaData: {metaData}")
-
-        if not repeat:
-            return np.asarray(values, dtype="float")
-        else:
-            return np.repeat(np.asarray([values], dtype="float"), repeat, axis=0)
-
     def random_stream(self):
         instrument_nums = self.get_num_pieces()
 
         for n_ins in instrument_nums:
             yield rand.randint(n_ins)
-
-    def generate_forever(self, **generate_params):
-        rand_inds = self.random_stream()
-        data_gen = self.generate_data(random_stream=rand_inds, **generate_params)
-
-        while True:
-            yield from data_gen
-
-            rand_inds = self.random_stream()
-            data_gen = self.generate_data(random_stream=rand_inds, **generate_params)
-
-    def save_conversion_params(self, filename=None):
-        if not self.conversion_params:
-            raise ValueError("DataGenerator.save_conversion_params called while DataGenerator.conversion_params is empty.")
-
-        if not filename:
-            filename = "DataGenerator.conversion_params"
-
-        print("CONVERSION PARAMS SAVED TO" + " Data/" + filename)
-
-        with open(os.path.join("Data", filename), "wb") as handle:
-            pickle.dump(self.conversion_params, handle)
 
 
 class RhythmGenerator(DataGenerator):
