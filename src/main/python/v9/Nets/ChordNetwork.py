@@ -5,7 +5,7 @@ from keras.layers import concatenate as Concat
 from keras.losses import categorical_crossentropy
 from keras.metrics import categorical_accuracy
 from keras.models import Model
-from Nets.MelodyEncoder import MelodyEncoder
+from v9.Nets.MelodyEncoder import MelodyEncoder
 
 
 class ChordNetwork(Model):
