@@ -6,6 +6,7 @@ src/test.py
 model_input.txt
 model_input_shapes.txt
 commands.txt
+.vscode/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
