@@ -21,9 +21,9 @@ if __name__ == "__main__":
     # Product of num_pieces
     print(f"Total number of tracks: {sum([k * v for k, v in Counter(num_pieces).items()])}")
 
-    data_iter = combined_generator.generate_forever(rhythm_context_size=rhythm_context_size,
-                                                    melody_context_size=melody_context_size,
-                                                    with_metaData=True)
+    data_iter = combined_generator.generate_data(rhythm_context_size=rhythm_context_size,
+                                                 melody_context_size=melody_context_size,
+                                                 with_metaData=True)
 
     # Print the first iteration of the data
     X, y = next(data_iter)
