@@ -12,28 +12,38 @@ class RhythmGenerator(RhythmGeneratorBase):
     def __init__(self, path, save_conversion_params=True, to_list=False, meta_prep_f=None):
         super().__init__(path, save_conversion_params, to_list, meta_prep_f)
 
-    def generate_data(self, context_size=1, rand_stream=None, with_rhythms=False, with_metaData=True):
+    def generate_data(self, context_size=1, rand_stream=None, with_metaData=True):
+        """Generate data for the rhythm model.
+
+        Output now consists of:
+        - The first element is a list of context values, followed by the meta data, followed by the lead
+
+        Changes from the base class:
+        - Previous meta data is removed
+        - with_rhythms is removed
+        - with_metaData is permanently True
+        """
         song_iter = self.get_rhythms_together(with_metaData=with_metaData)
 
         if not rand_stream:
             raise NotImplementedError("Default random stream not implemented!")
 
-        for instrument_ls in song_iter:
-            cur_i = next(rand_stream)
+        for instrument in song_iter:
+            current_index = next(rand_stream)
 
-            cur_lead, _ = instrument_ls[cur_i]
-            lead_labeled, _ = self.prepare_piece(cur_lead, context_size)
+            current_lead, _ = instrument[current_index]
+            current_lead_labeled, _ = self.prepare_piece(current_lead, context_size)
 
-            for rhythms, meta in instrument_ls:
-                rhythms_labeled, context_ls = self.prepare_piece(rhythms, context_size)
+            for rhythms, meta in instrument:
+                rhythms_labeled, context_rhythms = self.prepare_piece(rhythms, context_size)
 
                 if with_metaData:
                     prepared_meta = np.array(list(map(self.prepare_metaData, meta)))
-                    context_ls.append(prepared_meta)
+                    context_rhythms.append(prepared_meta)
 
-                context_ls.append(lead_labeled)
+                context_rhythms.append(current_lead_labeled)
 
-                yield context_ls, to_categorical(rhythms_labeled, num_classes=self.V)
+                yield context_rhythms, to_categorical(rhythms_labeled, num_classes=self.V)
 
 
 class CombinedGenerator(CombinedGeneratorBase):
@@ -47,12 +57,18 @@ class CombinedGenerator(CombinedGeneratorBase):
         self.melody_V = self.melody_gen.V
 
     def generate_data(self, rhythm_context_size=1, melody_context_size=1, random_stream=None, with_metaData=False):
+        """Generate data for the Transformer model.
+
+        Output now consists of:
+        - X: Context rhythms, context melodies, meta data, lead rhythm, lead melody
+        - y: A list of rhythm and melody values
+        """
         if not random_stream:
             random_stream = self.random_stream()
 
         r1, r2 = tee(random_stream, 2)
 
-        rhythm_iter = self.rhythm_gen.generate_data(rhythm_context_size, rand_stream=r1, with_rhythms=False, with_metaData=True)
+        rhythm_iter = self.rhythm_gen.generate_data(rhythm_context_size, rand_stream=r1, with_metaData=True)
         melody_iter = self.melody_gen.generate_data(melody_context_size, rand_stream=r2, with_metaData=False)
 
         for (cur_rhythm, cur_melody) in zip(rhythm_iter, melody_iter):

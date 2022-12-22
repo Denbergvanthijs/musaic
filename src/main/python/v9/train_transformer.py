@@ -1,47 +1,32 @@
-import os
-from time import asctime
+from collections import Counter
 
 from Data.DataGeneratorsTransformer import CombinedGenerator
-from Nets.MetaEmbedding import MetaEmbedding
 
 if __name__ == "__main__":
-    save_dir = asctime().split()
-    save_dir = "_".join([*save_dir[0:3], *save_dir[3].split(":")])
-    top_dir = "./src/main/python/v9/Trainings/"
-
     # Inputs
-    fp_input = os.path.join(top_dir, "euroAI_lead")  # Path to saved weights and meta
-    fp_meta = os.path.join(fp_input, "meta")  # Path to saved meta
     fp_music = "./src/main/python/v9/Data/lessfiles"  # "../../Data/music21"
-
-    # Outputs
-    fp_output = os.path.join(top_dir, save_dir)  # Path to save network weights
-    fp_logs = os.path.join(fp_output, "logs")  # Path to save logs
-    fp_weights = os.path.join(fp_output, "weights")  # Path to save weights
-
-    for fp in [fp_logs, fp_weights]:
-        if not os.path.exists(fp):
-            os.makedirs(fp)
 
     # Params
     rhythm_context_size = 4
     melody_context_size = 4
 
-    # Meta
-    meta_embedder = MetaEmbedding.from_saved_custom(fp_meta)
+    # Generate data
+    combined_generator = CombinedGenerator(fp_music, save_conversion_params=False, to_list=False, meta_prep_f=None)
 
-    # Change
-    combined_generator = CombinedGenerator(fp_music, save_conversion_params=fp_output, to_list=0, meta_prep_f=meta_embedder.predict)
-    _ = combined_generator.get_num_pieces()
+    # Counter of num_pieces
+    num_pieces = combined_generator.get_num_pieces()
+    for k, v in Counter(num_pieces).items():
+        print(f"{v} songs with {k} instruments")
+
+    # Product of num_pieces
+    print(f"Total number of tracks: {sum([k * v for k, v in Counter(num_pieces).items()])}")
 
     data_iter = combined_generator.generate_forever(rhythm_context_size=rhythm_context_size,
                                                     melody_context_size=melody_context_size,
                                                     with_metaData=True)
 
-    # Print output of data generator
+    # Print the first iteration of the data
     X, y = next(data_iter)
 
-    print(len(X), [x.shape for x in X])
-    print(len(y), [y.shape for y in y])
-    # x = [*rhythm_x, melody_x, meta, rhythm_lead, melody_lead]
-    # y = [rhythm_y, melody_y]
+    print(len(X), [x.shape for x in X])  # [*rhythm_x, melody_x, meta, rhythm_lead, melody_lead]
+    print(len(y), [y.shape for y in y])  # [rhythm_y, melody_y]
