@@ -9,10 +9,10 @@ from keras.utils import to_categorical
 
 
 class RhythmGenerator(RhythmGeneratorBase):
-    def __init__(self, path, save_conversion_params=True, to_list=False, meta_prep_f=None):
+    def __init__(self, path, save_conversion_params=True, to_list: bool = False, meta_prep_f=None):
         super().__init__(path, save_conversion_params, to_list, meta_prep_f)
 
-    def generate_data(self, context_size=1, rand_stream=None, with_metaData=True):
+    def generate_data(self, context_size: int = 1, rand_stream=None, with_metaData: bool = True):
         """Generate data for the rhythm model.
 
         Output now consists of:
@@ -56,7 +56,7 @@ class CombinedGenerator(CombinedGeneratorBase):
         self.rhythm_V = self.rhythm_gen.V
         self.melody_V = self.melody_gen.V
 
-    def generate_data(self, rhythm_context_size=1, melody_context_size=1, random_stream=None, with_metaData=False):
+    def generate_data(self, rhythm_context_size: int = 1, melody_context_size: int = 1, random_stream=None):
         """Generate data for the Transformer model.
 
         Output now consists of:
