@@ -2,11 +2,12 @@ from collections import Counter
 
 import numpy as np
 from Data.DataGeneratorsTransformer import CombinedGenerator
-from tensorflow.keras.layers import LSTM, Dense, Embedding, RepeatVector
+from tensorflow.keras.layers import (LSTM, Dense, Embedding, RepeatVector,
+                                     TimeDistributed)
 from tensorflow.keras.models import Sequential
 
 
-def preprocess(X, y):
+def preprocess(X, y=None):
     """Preprocesses the data for the model"""
     context_rhythms = np.concatenate([x.reshape(x.shape[0], -1) for x in X[:4]], axis=1)
     context_melodies = X[4].reshape(X[4].shape[0], -1)
@@ -18,17 +19,18 @@ def preprocess(X, y):
 
     X_processed = np.concatenate([context_rhythms, context_melodies, meta, lead_rhythm, lead_melody], axis=1)
 
-    # Transpose to (batch_size, 4, 127)
-    y_rhythm = y[0].transpose(0, 2, 1)
-    y_melody = y[1].transpose(0, 2, 1)
+    if y is not None:
+        return X_processed, y[0], y[1]
 
-    return X_processed, y_rhythm, y_melody
+    return X_processed
 
 
-def build_model(output_length: int, output_dim: int):
+def build_model(output_length: int, n_repeat: int):
     model = Sequential()
-    model.add(Dense(output_length, activation="softmax", input_shape=(270,)))
-    model.add(RepeatVector(output_dim))
+    model.add(Dense(32, activation="relu", input_shape=(270,)))
+    model.add(RepeatVector(n_repeat))
+    model.add(Dense(64, activation="relu"))
+    model.add(TimeDistributed(Dense(output_length, activation="softmax")))  # Softmax each seperate output
     model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
     model.summary()
 
@@ -38,13 +40,14 @@ def build_model(output_length: int, output_dim: int):
 if __name__ == "__main__":
     # Inputs
     fp_music = "./src/main/python/v9/Data/lessfiles"  # "../../Data/music21"
+    fp_output = "./src/main/python/smt22/"  # "../../Data/music21
 
     # Params
     rhythm_context_size = 4
     melody_context_size = 4
 
     # Generate data
-    combined_generator = CombinedGenerator(fp_music, save_conversion_params=False, to_list=False, meta_prep_f=None)
+    combined_generator = CombinedGenerator(fp_music, save_conversion_params=fp_output, to_list=False, meta_prep_f=None)
 
     # Counter of num_pieces
     num_pieces = combined_generator.get_num_pieces()
@@ -60,8 +63,8 @@ if __name__ == "__main__":
     # Build model, input is (batch_size, seq_len) where seq_len=270
     # Output is (batch_size, 4, 127)
 
-    model_rhythm = build_model(4, 127)
-    model_melody = build_model(48, 25)
+    model_rhythm = build_model(127, 4)
+    model_melody = build_model(25, 48)
 
     cnt = 0
     Xs, ys_rhythm, ys_melody = [], [], []
@@ -86,9 +89,9 @@ if __name__ == "__main__":
     ys_rhythm = np.concatenate(ys_rhythm, axis=0)
     ys_melody = np.concatenate(ys_melody, axis=0)
 
-    model_rhythm.fit(Xs, ys_rhythm, epochs=10, verbose=1, batch_size=32,
+    model_rhythm.fit(Xs, ys_rhythm, epochs=3, verbose=1, batch_size=32,
                      validation_split=0.2, shuffle=True, use_multiprocessing=True, workers=6)
-    model_melody.fit(Xs, ys_melody, epochs=10, verbose=1, batch_size=32,
+    model_melody.fit(Xs, ys_melody, epochs=3, verbose=1, batch_size=32,
                      validation_split=0.2, shuffle=True, use_multiprocessing=True, workers=6)
 
     model_rhythm.save("./src/main/python/smt22/model_rhythm.h5")
