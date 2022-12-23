@@ -1,10 +1,32 @@
 from collections import Counter
 
+import matplotlib.pyplot as plt
 import numpy as np
 from Data.DataGeneratorsTransformer import CombinedGenerator
 from tensorflow.keras.layers import (LSTM, Dense, Embedding, RepeatVector,
                                      TimeDistributed)
 from tensorflow.keras.models import Sequential
+
+
+def plots(hist_rhythm, hist_melody):
+    """Plots the loss and accuracy of both the rhythm and melody models."""
+    fig, axs = plt.subplots(1, 2, figsize=(15, 5))
+    axs[0].plot(hist_rhythm.history["loss"], label="Rhythm loss")
+    axs[0].plot(hist_rhythm.history["val_loss"], label="Rhythm val loss")
+    axs[0].plot(hist_melody.history["loss"], label="Melody loss")
+    axs[0].plot(hist_melody.history["val_loss"], label="Melody val loss")
+
+    axs[1].plot(hist_rhythm.history["acc"], label="Rhythm accuracy")
+    axs[1].plot(hist_rhythm.history["val_acc"], label="Rhythm val accuracy")
+    axs[1].plot(hist_melody.history["acc"], label="Melody accuracy")
+    axs[1].plot(hist_melody.history["val_acc"], label="Melody val accuracy")
+
+    axs[0].set_title("Loss")
+    axs[1].set_title("Accuracy")
+    axs[0].legend()
+    axs[1].legend()
+
+    plt.show()
 
 
 def preprocess(X, y=None):
@@ -31,7 +53,7 @@ def build_model(output_length: int, n_repeat: int):
     model.add(RepeatVector(n_repeat))
     model.add(Dense(64, activation="relu"))
     model.add(TimeDistributed(Dense(output_length, activation="softmax")))  # Softmax each seperate output
-    model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
+    model.compile(loss="binary_crossentropy", optimizer="adam", metrics=["accuracy"])
     model.summary()
 
     return model
@@ -81,18 +103,16 @@ if __name__ == "__main__":
         ys_rhythm.append(y_rhythm)
         ys_melody.append(y_melody)
 
-    print(f"Skipped {cnt} ({cnt/sum(num_pieces)*100:.0f}%) tracks because of wrong shape")
-
     # Concat all tracks, to enable batching with our own batch_size instead of per-track
     # This also improves speed/performance
     Xs = np.concatenate(Xs, axis=0)
     ys_rhythm = np.concatenate(ys_rhythm, axis=0)
     ys_melody = np.concatenate(ys_melody, axis=0)
 
-    model_rhythm.fit(Xs, ys_rhythm, epochs=3, verbose=1, batch_size=32,
-                     validation_split=0.2, shuffle=True, use_multiprocessing=True, workers=6)
-    model_melody.fit(Xs, ys_melody, epochs=3, verbose=1, batch_size=32,
-                     validation_split=0.2, shuffle=True, use_multiprocessing=True, workers=6)
+    hist_rhythm = model_rhythm.fit(Xs, ys_rhythm, epochs=10, verbose=1, batch_size=32,
+                                   validation_split=0.2, shuffle=True, use_multiprocessing=True, workers=6)
+    hist_melody = model_melody.fit(Xs, ys_melody, epochs=10, verbose=1, batch_size=32,
+                                   validation_split=0.2, shuffle=True, use_multiprocessing=True, workers=6)
 
     model_rhythm.save("./src/main/python/smt22/model_rhythm.h5")
     model_melody.save("./src/main/python/smt22/model_melody.h5")
@@ -103,5 +123,8 @@ if __name__ == "__main__":
     score_rhythm = model_rhythm.evaluate(Xs, ys_rhythm, verbose=1, batch_size=32, use_multiprocessing=True, workers=6)
     score_melody = model_melody.evaluate(Xs, ys_melody, verbose=1, batch_size=32, use_multiprocessing=True, workers=6)
 
+    print(f"Skipped {cnt} ({cnt/sum(num_pieces)*100:.0f}%) tracks because of wrong shape")
     print(f"Rhythm model loss: {score_rhythm[0]:.4f}, accuracy: {score_rhythm[1]:.4f}")
     print(f"Melody model loss: {score_melody[0]:.4f}, accuracy: {score_melody[1]:.4f}")
+
+    plots(hist_rhythm, hist_melody)
