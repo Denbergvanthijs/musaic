@@ -17,11 +17,15 @@ SMT22 = 3
 
 PLAYER = 3
 
-if PLAYER != RANDOM:
+if PLAYER in (VER_9, EUROAI):
     from v9.Nets.ChordNetwork import ChordNetwork
     from v9.Nets.CombinedNetworkEuro import CombinedNetwork
     from v9.Nets.MetaEmbeddingEuro import MetaEmbedding
     from v9.Nets.MetaPredictorEuro import MetaPredictor
+
+if PLAYER == SMT22:
+    import tensorflow as tf
+    from v9.Nets.ChordNetwork import ChordNetwork
 
 
 class RandomPlayer():
@@ -439,14 +443,18 @@ class TransformerNet(NeuralNet):
         time_start = time.time()
 
         print("[NeuralNet] === Using SMT22 model ===")
-        self.model = lambda _: 1  # Also needs a .predict(x) method, TODO: implement a model
-        self.model_chords = lambda _: 1  # Also needs a .predict(x) method  TODO: either implement seperate model or use the same model
+        self.model_rhythm = tf.keras.models.load_model("./src/main/python/smt22/model_rhythm.h5")
+        self.model_melody = tf.keras.models.load_model("./src/main/python/smt22/model_melody.h5")
 
-        fp_training_data = "./src/main/resources/base/euroAI/"  # TODO: Change to parameter
+        fp_euroai = "./src/main/resources/base/euroAI/"
+        fp_chord_network = os.path.join(fp_euroai, "chord")
+        self.model_chords = ChordNetwork.from_saved_custom(fp_chord_network, load_melody_encoder=True)
+
+        fp_training_data = "./src/main/python/smt22/"  # TODO: Change to parameter
         with open(os.path.join(fp_training_data, "DataGenerator.conversion_params"), "rb") as f:
             params_conversion = pickle.load(f)  # TODO: investigate what this is
 
-        with open(os.path.join(fp_training_data, "ChordGenerator.conversion_params"), "rb") as f:
+        with open(os.path.join(fp_euroai, "ChordGenerator.conversion_params"), "rb") as f:
             params_conversion_chord = pickle.load(f)  # TODO: investigate what this is
 
         self.rhythmDict = params_conversion["rhythm"]
@@ -457,7 +465,7 @@ class TransformerNet(NeuralNet):
         for k, v in list(self.chordDict.items()):  # Reverse dict
             self.chordDict[v] = k
 
-        self.vocabulary = {"rhythm": 30, "melody": 25}  # Extracted from EuroAI model, TODO: investigate what this is
+        self.vocabulary = {"rhythm": 127, "melody": 25}  # Extracted from EuroAI model, TODO: investigate what this is
 
         self.note_durations_dict = {"qb": [self.rhythmDict[(0.0,)]] * 2,  # Quarter
                                     "lb": [self.rhythmDict[()]],  # Long
@@ -465,8 +473,7 @@ class TransformerNet(NeuralNet):
                                     "fb": [self.rhythmDict[(0.0, 0.25, 0.5, 0.75)],  # Sixteenth
                                            self.rhythmDict[(0.0, 0.25, 0.5)],
                                            self.rhythmDict[(0.5, 0.75)]] * 2,
-                                    "tb": [self.rhythmDict[(0.0, 0.333, 0.6667)],  # Triplet
-                                           self.rhythmDict[(0.3333, 0.6667)]] * 2, }
+                                    "tb": [self.rhythmDict[(0.3333, 0.6667)]] * 2, }  # self.rhythmDict[(0.0, 0.333, 0.6667)], Triplet
 
         self.scales_dict = {"maj": [1, 3, 5, 6, 8, 10, 12],  # Major
                             "min": [1, 3, 4, 6, 8, 10, 11],  # Minor
@@ -487,6 +494,27 @@ class TransformerNet(NeuralNet):
             for f in init_callbacks:
                 f()
 
+    @staticmethod
+    def preprocess(X, y=None):
+        """Preprocesses the data for the model.
+
+        Input is one iteration of the DataGenerator from DataGeneratorsTransformer.
+        """
+        context_rhythms = np.concatenate([x.reshape(x.shape[0], -1) for x in X[:4]], axis=1)
+        context_melodies = X[4].reshape(X[4].shape[0], -1)
+
+        meta = X[5]
+
+        lead_rhythm = X[6].reshape(X[6].shape[0], -1)
+        lead_melody = X[7].reshape(X[7].shape[0], -1)
+
+        X_processed = np.concatenate([context_rhythms, context_melodies, meta, lead_rhythm, lead_melody], axis=1)
+
+        if y is not None:
+            return X_processed, y[0], y[1]
+
+        return X_processed
+
     def generateBar(self, octave: int = 4, **kwargs) -> list:
         """Generate a bar of music.
 
@@ -506,17 +534,13 @@ class TransformerNet(NeuralNet):
                                [context_rhythms, context_melodies, meta_data_preprocessed, lead_rhythm, lead_melody]):
                 f.write(f"{name}:\n{i}\n\n")
 
-        # model_output = self.model.predict(x=model_input)  # TODO: implement model
-        # sampled_rhythm, sampled_melody, sampled_chords = self.sampleOutput(model_output, kwargs)  # Postprocess output
-        # return_val = self.convertContextToNotes(sampled_rhythm[0], sampled_melody[0], sampled_chords, kwargs, octave=octave)
+        model_input_preprocessed = TransformerNet.preprocess(model_input)
 
-        # Temporary random notes
-        notes = []
-        for i in range(4):
-            note = (random.randint(60, 80), i * 24, (i + 1) * 24)  # pitch, start tick, end tick
-            notes.append(note)
+        rhythm_output = self.model_rhythm.predict(x=model_input_preprocessed)
+        melody_output = self.model_melody.predict(x=model_input_preprocessed)
 
-        return notes
+        sampled_rhythm, sampled_melody, sampled_chords = self.sampleOutput([rhythm_output, melody_output], kwargs)  # Postprocess output
+        return self.convertContextToNotes(sampled_rhythm[0], sampled_melody[0], sampled_chords, kwargs, octave=octave)
 
 
 class NetworkEngine(multiprocessing.Process):
