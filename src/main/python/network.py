@@ -500,15 +500,15 @@ class TransformerNet(NeuralNet):
 
         Input is one iteration of the DataGenerator from DataGeneratorsTransformer.
         """
-        context_rhythms = np.concatenate([x.reshape(x.shape[0], -1) for x in X[:4]], axis=1)
-        context_melodies = X[4].reshape(X[4].shape[0], -1)
+        context_rhythms = np.concatenate([x.reshape(x.shape[0], -1) for x in X[:4]], axis=1)  # 4x4 to 16
+        context_melodies = X[4].reshape(X[4].shape[0], -1)  # 4x48 to 192
 
         meta = X[5]
 
-        lead_rhythm = X[6].reshape(X[6].shape[0], -1)
+        lead_rhythm = X[6]
         lead_melody = X[7].reshape(X[7].shape[0], -1)
 
-        X_processed = np.concatenate([context_rhythms, context_melodies, meta, lead_rhythm, lead_melody], axis=1)
+        X_processed = [context_rhythms, context_melodies, meta, lead_rhythm, lead_melody]
 
         if y is not None:
             return X_processed, y[0], y[1]

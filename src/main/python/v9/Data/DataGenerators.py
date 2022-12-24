@@ -6,8 +6,8 @@ from fractions import Fraction
 from pathlib import Path
 
 import numpy as np
-from Data.utils import label
-from keras.utils import to_categorical
+from tensorflow.keras.utils import to_categorical
+from v9.Data.utils import label
 
 
 class DataGenerator:
