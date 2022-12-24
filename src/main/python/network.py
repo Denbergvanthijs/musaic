@@ -15,7 +15,7 @@ VER_9 = 1
 EUROAI = 2
 SMT22 = 3
 
-PLAYER = 2
+PLAYER = 3
 
 if PLAYER in (VER_9, EUROAI):
     from v9.Nets.ChordNetwork import ChordNetwork

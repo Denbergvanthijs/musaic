@@ -5,7 +5,7 @@ from itertools import tee
 import numpy as np
 from Data.DataGeneratorsLeadMeta import DataGenerator as DataGeneratorBase
 from Data.utils import label
-from keras.utils import to_categorical
+from tensorflow.keras.utils import to_categorical
 
 
 class DataGenerator(DataGeneratorBase):
