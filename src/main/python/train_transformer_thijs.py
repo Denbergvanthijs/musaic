@@ -2,10 +2,10 @@ from collections import Counter
 
 import matplotlib.pyplot as plt
 import numpy as np
-from Data.DataGeneratorsTransformer import CombinedGenerator
 from tensorflow.keras.layers import (LSTM, Dense, Embedding, RepeatVector,
                                      TimeDistributed)
 from tensorflow.keras.models import Sequential
+from v9.Data.DataGeneratorsTransformer import CombinedGenerator
 
 
 def plots(hist_rhythm, hist_melody):
