@@ -2,18 +2,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plots(hist_rhythm, hist_melody):
+def plots(history):
     """Plots the loss and accuracy of both the rhythm and melody models."""
     fig, axs = plt.subplots(1, 2, figsize=(15, 5))
-    axs[0].plot(hist_rhythm.history["loss"], label="Rhythm loss")
-    axs[0].plot(hist_rhythm.history["val_loss"], label="Rhythm val loss")
-    axs[0].plot(hist_melody.history["loss"], label="Melody loss")
-    axs[0].plot(hist_melody.history["val_loss"], label="Melody val loss")
 
-    axs[1].plot(hist_rhythm.history["accuracy"], label="Rhythm accuracy")
-    axs[1].plot(hist_rhythm.history["val_accuracy"], label="Rhythm val accuracy")
-    axs[1].plot(hist_melody.history["accuracy"], label="Melody accuracy")
-    axs[1].plot(hist_melody.history["val_accuracy"], label="Melody val accuracy")
+    axs[0].plot(history.history["rhythm_decoder_loss"], label="Rhythm loss")
+    axs[0].plot(history.history["melody_decoder_loss"], label="Melody loss")
+    axs[0].plot(history.history["val_rhythm_decoder_loss"], label="Rhythm val loss")
+    axs[0].plot(history.history["val_melody_decoder_loss"], label="Melody val loss")
+
+    axs[1].plot(history.history["rhythm_decoder_accuracy"], label="Rhythm accuracy")
+    axs[1].plot(history.history["melody_decoder_accuracy"], label="Melody accuracy")
+    axs[1].plot(history.history["val_rhythm_decoder_accuracy"], label="Rhythm val accuracy")
+    axs[1].plot(history.history["val_melody_decoder_accuracy"], label="Melody val accuracy")
 
     axs[0].set_title("Loss")
     axs[1].set_title("Accuracy")
@@ -41,7 +42,8 @@ def preprocess(X, y=None):
     return X_processed
 
 
-def valid_input(X, y_rhythm, y_melody):
+def valid_input(X, y_rhythm, y_melody) -> bool:
+    """Checks if the input is valid."""
     context_rhythms, context_melodies, meta, lead_rhythm, lead_melody = X
 
     if context_rhythms.shape[-1] != 16:

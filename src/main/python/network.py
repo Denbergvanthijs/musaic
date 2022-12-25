@@ -24,7 +24,8 @@ if PLAYER in (VER_9, EUROAI):
     from v9.Nets.MetaPredictorEuro import MetaPredictor
 
 if PLAYER == SMT22:
-    import tensorflow as tf
+    from keras_nlp.layers import SinePositionEncoding
+    from tensorflow.keras.models import load_model
     from v9.Nets.ChordNetwork import ChordNetwork
 
 
@@ -443,8 +444,8 @@ class TransformerNet(NeuralNet):
         time_start = time.time()
 
         print("[NeuralNet] === Using SMT22 model ===")
-        self.model_rhythm = tf.keras.models.load_model("./src/main/python/smt22/model_rhythm.h5")
-        self.model_melody = tf.keras.models.load_model("./src/main/python/smt22/model_melody.h5")
+        custom_objects = {"SinePositionEncoding": SinePositionEncoding}
+        self.model = load_model("./src/main/python/smt22/model.h5", custom_objects=custom_objects)
 
         fp_euroai = "./src/main/resources/base/euroAI/"
         fp_chord_network = os.path.join(fp_euroai, "chord")
@@ -536,10 +537,9 @@ class TransformerNet(NeuralNet):
 
         model_input_preprocessed = TransformerNet.preprocess(model_input)
 
-        rhythm_output = self.model_rhythm.predict(x=model_input_preprocessed)
-        melody_output = self.model_melody.predict(x=model_input_preprocessed)
+        model_output = self.model.predict(x=model_input_preprocessed)
 
-        sampled_rhythm, sampled_melody, sampled_chords = self.sampleOutput([rhythm_output, melody_output], kwargs)  # Postprocess output
+        sampled_rhythm, sampled_melody, sampled_chords = self.sampleOutput(model_output, kwargs)  # Postprocess output
         return self.convertContextToNotes(sampled_rhythm[0], sampled_melody[0], sampled_chords, kwargs, octave=octave)
 
 

@@ -48,33 +48,25 @@ if __name__ == "__main__":
         #     break
 
     Xs = [np.array(X1), np.array(X2), np.array(X3), np.array(X4), np.array(X5)]
-    ys_rhythm = np.array(ys_rhythm)
-    ys_melody = np.array(ys_melody)
+    ys = [np.array(ys_rhythm), np.array(ys_melody)]
 
     print(f"Xs: {len(Xs)} tracks; {Xs[0].shape} {Xs[1].shape} {Xs[2].shape} {Xs[3].shape} {Xs[4].shape}")
     print(f"Max values: {np.max(Xs[0])} {np.max(Xs[1])} {np.max(Xs[2])} {np.max(Xs[3])} {np.max(Xs[4])}")
-    print(f"ys_rhythm: {ys_rhythm.shape}")
-    print(f"ys_melody: {ys_melody.shape}")
+    print(f"Min values: {np.min(Xs[0])} {np.min(Xs[1])} {np.min(Xs[2])} {np.min(Xs[3])} {np.min(Xs[4])}")
+    print(f"ys_rhythm: {ys[0].shape}")
+    print(f"ys_melody: {ys[1].shape}")
     print(f"Skipped {cnt} ({cnt/sum(num_pieces)*100:.0f}%) tracks because of wrong shape")
 
-    model_rhythm = build_model(127, 4)  # TODO: Train encoder only once, train two seperate decoders
-    model_melody = build_model(25, 48)
+    model = build_model(127, 4, 25, 48)  # TODO: Train encoder only once, train two seperate decoders
 
-    hist_rhythm = model_rhythm.fit(Xs, ys_rhythm, epochs=3, verbose=1, batch_size=32,
-                                   validation_split=0.2, shuffle=True, use_multiprocessing=True, workers=6)
-    hist_melody = model_melody.fit(Xs, ys_melody, epochs=3, verbose=1, batch_size=32,
-                                   validation_split=0.2, shuffle=True, use_multiprocessing=True, workers=6)
+    hist_model = model.fit(Xs, ys, epochs=3, verbose=1, batch_size=64, validation_split=0.1,
+                           shuffle=True, use_multiprocessing=True, workers=6)
 
-    model_rhythm.save("./src/main/python/smt22/model_rhythm.h5")
-    model_melody.save("./src/main/python/smt22/model_melody.h5")
+    model.save("./src/main/python/smt22/model.h5")
+    # model = tf.keras.models.load_model("./src/main/python/smt22/model.h5")
 
-    # model_rhythm = tf.keras.models.load_model("./src/main/python/smt22/model_rhythm.h5")
-    # model_melody = tf.keras.models.load_model("./src/main/python/smt22/model_melody.h5")
+    score = model.evaluate(Xs, ys, verbose=1, batch_size=32, use_multiprocessing=True, workers=6)
+    print(f"Rhythm model loss: {score[1]:.4f}; Melody model loss: {score[2]:.4f}")
+    print(f"Rhythm model accuracy: {score[3]:.4f}; Melody model accuracy: {score[4]:.4f}")
 
-    score_rhythm = model_rhythm.evaluate(Xs, ys_rhythm, verbose=1, batch_size=32, use_multiprocessing=True, workers=6)
-    score_melody = model_melody.evaluate(Xs, ys_melody, verbose=1, batch_size=32, use_multiprocessing=True, workers=6)
-
-    print(f"Rhythm model loss: {score_rhythm[0]:.4f}, accuracy: {score_rhythm[1]:.4f}")
-    print(f"Melody model loss: {score_melody[0]:.4f}, accuracy: {score_melody[1]:.4f}")
-
-    plots(hist_rhythm, hist_melody)
+    plots(hist_model)

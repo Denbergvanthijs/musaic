@@ -69,7 +69,35 @@ def lead_melody_encoder():
     return lead_melody_input, lead_melody_attention
 
 
-def build_model(output_length: int, n_repeat: int):
+def rhythm_decoder(output_length: int, n_repeat: int, input_layer):
+    decoder = Dense(128, activation="relu", name="rhythm_decoder_dense1")(input_layer)
+    decoder = Dropout(0.2)(decoder)
+    decoder = RepeatVector(n_repeat)(decoder)  # Repeat the output n_repeat times
+
+    decoder = MultiHeadAttention(num_heads=4, key_dim=32, name="rhythm_decoder_attention")(decoder, decoder)
+    decoder = LayerNormalization(epsilon=1e-6)(decoder)
+
+    decoder = Dense(128, activation="relu", name="rhythm_decoder_dense2")(decoder)
+    decoder = TimeDistributed(Dense(output_length, activation="softmax"), name="rhythm_decoder")(decoder)  # Output layer
+
+    return decoder
+
+
+def melody_decoder(output_length: int, n_repeat: int, input_layer):
+    decoder = Dense(128, activation="relu", name="melody_decoder_dense1")(input_layer)
+    decoder = Dropout(0.2)(decoder)
+    decoder = RepeatVector(n_repeat)(decoder)  # Repeat the output n_repeat times
+
+    decoder = MultiHeadAttention(num_heads=8, key_dim=32, name="melody_decoder_attention")(decoder, decoder)
+    decoder = LayerNormalization(epsilon=1e-6)(decoder)
+
+    decoder = Dense(128, activation="relu", name="melody_decoder_dense2")(decoder)
+    decoder = TimeDistributed(Dense(output_length, activation="softmax"), name="melody_decoder")(decoder)  # Output layer
+
+    return decoder
+
+
+def build_model(output_length_rhythm: int, n_repeat_rhythm: int, output_length_melody: int, n_repeat_melody: int):
     rhythm_input, rhythm_attention = rhythm_encoder()
     melody_input, melody_attention = melody_encoder()
     meta_input, meta_dense = meta_encoder()
@@ -93,20 +121,13 @@ def build_model(output_length: int, n_repeat: int):
     concat = Dropout(0.2)(concat)
 
     # Decoder
-    decoder = Dense(128, activation="relu", name="decoder_dense1")(concat)
-    decoder = Dropout(0.2)(decoder)
-    decoder = RepeatVector(n_repeat)(decoder)  # Repeat the output n_repeat times
-
-    decoder = MultiHeadAttention(num_heads=4, key_dim=32, name="decoder_attention")(decoder, decoder)
-    decoder = LayerNormalization(epsilon=1e-6)(decoder)
-
-    decoder = Dense(128, activation="relu", name="decoder_dense2")(decoder)
-    decoder = TimeDistributed(Dense(output_length, activation="softmax", name="decoder_dense3"))(decoder)  # Output layer
+    rhythm_dec = rhythm_decoder(output_length_rhythm, n_repeat_rhythm, concat)
+    melody_dec = melody_decoder(output_length_melody, n_repeat_melody, concat)
 
     # Build the model
-    model = Model(inputs=encoder_inputs, outputs=decoder)
-    opt = Adam(learning_rate=0.001)
-    model.compile(optimizer=opt, loss="binary_crossentropy", metrics=["accuracy"])
+    model = Model(inputs=encoder_inputs, outputs=[rhythm_dec, melody_dec])
+    opt = Adam(learning_rate=0.005, beta_1=0.95, beta_2=0.99, clipnorm=1.0)
+    model.compile(optimizer=opt, loss="categorical_crossentropy", metrics=["accuracy"])
     model.summary()
 
     return model
