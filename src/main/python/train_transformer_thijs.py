@@ -61,7 +61,7 @@ if __name__ == "__main__":
     model = build_model(127, 4, 25, 48)  # TODO: Train encoder only once, train two seperate decoders
     plot_model(model, to_file="./src/main/python/smt22/model_thijs.png", show_shapes=True, dpi=300)
 
-    hist_model = model.fit(Xs, ys, epochs=3, verbose=1, batch_size=64, validation_split=0.1,
+    hist_model = model.fit(Xs, ys, epochs=10, verbose=1, batch_size=64, validation_split=0.1,
                            shuffle=True, use_multiprocessing=True, workers=6)
 
     model.save("./src/main/python/smt22/model.h5")

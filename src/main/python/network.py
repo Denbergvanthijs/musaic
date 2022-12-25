@@ -25,6 +25,7 @@ if PLAYER in (VER_9, EUROAI):
 
 if PLAYER == SMT22:
     from keras_nlp.layers import SinePositionEncoding
+    from smt22.utils import preprocess
     from tensorflow.keras.models import load_model
     from v9.Nets.ChordNetwork import ChordNetwork
 
@@ -141,12 +142,7 @@ class NeuralNet():
         meta_data_embedded = self.embedMetaData(kwargs["meta_data"])
         lead_rhythm, lead_melody = self.getLead(kwargs, context_rhythms, context_melodies)
 
-        # TEMP: Write model input to file for debugging
-        with open("model_input.txt", "w+") as f:
-            for name, i in zip(["context_rhythms", "context_melodies", "meta_data_embedded", "lead_rhythm", "lead_melody"],
-                               [context_rhythms, context_melodies, meta_data_embedded, lead_rhythm, lead_melody]):
-                f.write(f"{name}:\n{i}\n\n")
-
+        # Generate output
         model_input = [*context_rhythms, context_melodies, meta_data_embedded, lead_rhythm, lead_melody]
         model_output = self.model.predict(x=model_input)
 
@@ -495,27 +491,6 @@ class TransformerNet(NeuralNet):
             for f in init_callbacks:
                 f()
 
-    @staticmethod
-    def preprocess(X, y=None):
-        """Preprocesses the data for the model.
-
-        Input is one iteration of the DataGenerator from DataGeneratorsTransformer.
-        """
-        context_rhythms = np.concatenate([x.reshape(x.shape[0], -1) for x in X[:4]], axis=1)  # 4x4 to 16
-        context_melodies = X[4].reshape(X[4].shape[0], -1)  # 4x48 to 192
-
-        meta = X[5]
-
-        lead_rhythm = X[6]
-        lead_melody = X[7].reshape(X[7].shape[0], -1)
-
-        X_processed = [context_rhythms, context_melodies, meta, lead_rhythm, lead_melody]
-
-        if y is not None:
-            return X_processed, y[0], y[1]
-
-        return X_processed
-
     def generateBar(self, octave: int = 4, **kwargs) -> list:
         """Generate a bar of music.
 
@@ -528,17 +503,12 @@ class TransformerNet(NeuralNet):
         lead_rhythm, lead_melody = self.getLead(kwargs, context_rhythms, context_melodies)
 
         model_input = [*context_rhythms, context_melodies, meta_data_preprocessed, lead_rhythm, lead_melody]
+        model_input_preprocessed = preprocess(model_input)
 
-        # TEMP: Write model input to file for debugging
-        with open("model_input.txt", "w+") as f:
-            for name, i in zip(["context_rhythms", "context_melodies", "meta_data_embedded", "lead_rhythm", "lead_melody"],
-                               [context_rhythms, context_melodies, meta_data_preprocessed, lead_rhythm, lead_melody]):
-                f.write(f"{name}:\n{i}\n\n")
-
-        model_input_preprocessed = TransformerNet.preprocess(model_input)
-
+        # Generate output
         model_output = self.model.predict(x=model_input_preprocessed)
 
+        # Postprocess output
         sampled_rhythm, sampled_melody, sampled_chords = self.sampleOutput(model_output, kwargs)  # Postprocess output
         return self.convertContextToNotes(sampled_rhythm[0], sampled_melody[0], sampled_chords, kwargs, octave=octave)
 

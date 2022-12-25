@@ -33,8 +33,8 @@ def melody_encoder():
     return melody_input, melody_attention
 
 
-def meta_encoder():
-    meta_input = Input(shape=(10,), name="meta_input")
+def meta_encoder(process_meta: bool = True):
+    meta_input = Input(shape=((7 if process_meta else 10),), name="meta_input")
     meta_dense1 = Dense(64, activation="relu", name="meta_dense1")(meta_input)
     meta_dense2 = Dense(32, activation="relu", name="meta_dense2")(meta_dense1)
 

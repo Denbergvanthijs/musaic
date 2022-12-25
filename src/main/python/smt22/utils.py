@@ -24,12 +24,28 @@ def plots(history):
     plt.show()
 
 
-def preprocess(X, y=None):
-    """Preprocesses the data for the model"""
+def preprocess(X, y=None, process_meta: bool = True):
+    """Preprocesses the data for the model.
+
+    Max values for meta are determined based on the maximum value their knob can be set to.
+
+    Min and max are in the order of sorted(meta_keys):
+    ['cDens', 'cDepth', 'expression', 'jump', 'pos', 'rDens', 'span', 'tCent', 'ts part 1', 'ts part 2']
+    """
     context_rhythms = np.concatenate([x.reshape(x.shape[0], -1) for x in X[:4]], axis=1)
     context_melodies = X[4].reshape(X[4].shape[0], -1)
 
     meta = X[5]
+
+    if process_meta:
+        # Normalise each value of meta by subtracting the minimum value and dividing by the range
+        max_values = np.array([1, 5, 1, 12, 1, 8, 30, 80, 4, 4])
+        min_values = np.array([0, 1, 0, 0, 0, 0, 1, 40, 0, 0])
+        meta = (meta - min_values) / (max_values - min_values)
+
+        # Only select relevant meta data
+        # expression (index 2) and ts (index 8 and 9) are not used
+        meta = meta[:, [0, 1, 3, 4, 5, 6, 7]]
 
     lead_rhythm = X[6]
     lead_melody = X[7].reshape(X[7].shape[0], -1)
@@ -42,7 +58,7 @@ def preprocess(X, y=None):
     return X_processed
 
 
-def valid_input(X, y_rhythm, y_melody) -> bool:
+def valid_input(X, y_rhythm, y_melody, process_meta: bool = True) -> bool:
     """Checks if the input is valid."""
     context_rhythms, context_melodies, meta, lead_rhythm, lead_melody = X
 
@@ -52,7 +68,7 @@ def valid_input(X, y_rhythm, y_melody) -> bool:
     if context_melodies.shape[-1] != 192:
         return False
 
-    if meta.shape[-1] != 10:
+    if meta.shape[-1] != (7 if process_meta else 10):
         return False
 
     if lead_rhythm.shape[-1] != 4:
