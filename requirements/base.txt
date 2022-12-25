@@ -9,3 +9,5 @@ python-rtmidi==1.4.9
 numpy
 mido
 fbs
+keras_nlp
+pydot

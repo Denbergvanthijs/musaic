@@ -3,6 +3,7 @@ from collections import Counter
 import numpy as np
 from smt22.encoders import build_model
 from smt22.utils import plots, preprocess, valid_input
+from tensorflow.keras.utils import plot_model
 from v9.Data.DataGeneratorsTransformer import CombinedGenerator
 
 if __name__ == "__main__":
@@ -58,6 +59,7 @@ if __name__ == "__main__":
     print(f"Skipped {cnt} ({cnt/sum(num_pieces)*100:.0f}%) tracks because of wrong shape")
 
     model = build_model(127, 4, 25, 48)  # TODO: Train encoder only once, train two seperate decoders
+    plot_model(model, to_file="./src/main/python/smt22/model_thijs.png", show_shapes=True, dpi=300)
 
     hist_model = model.fit(Xs, ys, epochs=3, verbose=1, batch_size=64, validation_split=0.1,
                            shuffle=True, use_multiprocessing=True, workers=6)
