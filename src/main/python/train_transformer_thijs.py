@@ -52,6 +52,7 @@ if __name__ == "__main__":
     ys_melody = np.array(ys_melody)
 
     print(f"Xs: {len(Xs)} tracks; {Xs[0].shape} {Xs[1].shape} {Xs[2].shape} {Xs[3].shape} {Xs[4].shape}")
+    print(f"Max values: {np.max(Xs[0])} {np.max(Xs[1])} {np.max(Xs[2])} {np.max(Xs[3])} {np.max(Xs[4])}")
     print(f"ys_rhythm: {ys_rhythm.shape}")
     print(f"ys_melody: {ys_melody.shape}")
     print(f"Skipped {cnt} ({cnt/sum(num_pieces)*100:.0f}%) tracks because of wrong shape")
