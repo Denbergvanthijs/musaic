@@ -1,8 +1,13 @@
+import os
 from collections import Counter
+from datetime import datetime
 
 import numpy as np
-from smt22.encoders import build_model
+from smt22.models import build_model
 from smt22.utils import plots, preprocess, valid_input
+from tensorflow.keras.callbacks import TensorBoard
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.optimizers.schedules import PolynomialDecay
 from tensorflow.keras.utils import plot_model
 from v9.Data.DataGeneratorsTransformer import CombinedGenerator
 
@@ -59,10 +64,19 @@ if __name__ == "__main__":
     print(f"Skipped {cnt} ({cnt/sum(num_pieces)*100:.0f}%) tracks because of wrong shape")
 
     model = build_model(127, 4, 25, 48)  # TODO: Train encoder only once, train two seperate decoders
+
+    fp_logs = os.path.join("./src/main/python/smt22/logs", datetime.now().strftime("%Y%m%d_%H%M%S"))
+    tensorboard_cb = TensorBoard(log_dir=fp_logs, histogram_freq=1)
+
+    lr_schedule = PolynomialDecay(initial_learning_rate=0.01, decay_steps=1_000, end_learning_rate=0.0005)
+    opt = Adam(learning_rate=0.005, beta_1=0.95, beta_2=0.99, clipnorm=1.0)
+    model.compile(optimizer=opt, loss="categorical_crossentropy", metrics=["accuracy"], loss_weights=[4, 48])
+
+    model.summary()
     plot_model(model, to_file="./src/main/python/smt22/model_thijs.png", show_shapes=True, dpi=300)
 
     hist_model = model.fit(Xs, ys, epochs=10, verbose=1, batch_size=64, validation_split=0.1,
-                           shuffle=True, use_multiprocessing=True, workers=6)
+                           shuffle=True, use_multiprocessing=True, workers=6, callbacks=[tensorboard_cb])
 
     model.save("./src/main/python/smt22/model.h5")
     # model = tf.keras.models.load_model("./src/main/python/smt22/model.h5")
