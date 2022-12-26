@@ -47,10 +47,11 @@ def preprocess(X, y=None, process_meta: bool = True):
         # expression (index 2) and ts (index 8 and 9) are not used
         meta = meta[:, [0, 1, 3, 4, 5, 6, 7]]
 
-    lead_rhythm = X[6]
+    lead_rhythm = X[6].reshape(X[6].shape[0], -1)
     lead_melody = X[7].reshape(X[7].shape[0], -1)
 
     X_processed = [context_rhythms, context_melodies, meta, lead_rhythm, lead_melody]
+    X_processed = [x.astype(np.float32) for x in X_processed]  # Necessary for tf.lite
 
     if y is not None:
         return X_processed, y[0], y[1]
