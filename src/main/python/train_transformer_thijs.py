@@ -3,6 +3,7 @@ from collections import Counter
 from datetime import datetime
 
 import numpy as np
+import tensorflow as tf
 from smt22.models import build_model
 from smt22.utils import plots, preprocess, valid_input
 from tensorflow.keras.callbacks import TensorBoard
@@ -59,8 +60,9 @@ if __name__ == "__main__":
     print(f"Xs: {len(Xs)} tracks; {Xs[0].shape} {Xs[1].shape} {Xs[2].shape} {Xs[3].shape} {Xs[4].shape}")
     print(f"Max values: {np.max(Xs[0])} {np.max(Xs[1])} {np.max(Xs[2])} {np.max(Xs[3])} {np.max(Xs[4])}")
     print(f"Min values: {np.min(Xs[0])} {np.min(Xs[1])} {np.min(Xs[2])} {np.min(Xs[3])} {np.min(Xs[4])}")
-    print(f"ys_rhythm: {ys[0].shape}")
-    print(f"ys_melody: {ys[1].shape}")
+    print(f"ys_rhythm: {ys[0].shape}; ys_melody: {ys[1].shape}")
+    print(f"Max values: {np.max(ys[0])} {np.max(ys[1])}")
+    print(f"Min values: {np.min(ys[0])} {np.min(ys[1])}")
     print(f"Skipped {cnt} ({cnt/sum(num_pieces)*100:.0f}%) tracks because of wrong shape")
 
     model = build_model(127, 4, 25, 48)  # TODO: Train encoder only once, train two seperate decoders
@@ -75,11 +77,16 @@ if __name__ == "__main__":
     model.summary()
     plot_model(model, to_file="./src/main/python/smt22/model_thijs.png", show_shapes=True, dpi=300)
 
-    hist_model = model.fit(Xs, ys, epochs=10, verbose=1, batch_size=64, validation_split=0.1,
+    hist_model = model.fit(Xs, ys, epochs=1, verbose=1, batch_size=64, validation_split=0.1,
                            shuffle=True, use_multiprocessing=True, workers=6, callbacks=[tensorboard_cb])
 
-    model.save("./src/main/python/smt22/model.h5")
-    # model = tf.keras.models.load_model("./src/main/python/smt22/model.h5")
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    converter.optimizations = [tf.lite.Optimize.DEFAULT]
+    tflite_model = converter.convert()
+
+    # Save the model
+    with open("./src/main/python/smt22/model.tflite", 'wb') as file:
+        file.write(tflite_model)
 
     score = model.evaluate(Xs, ys, verbose=1, batch_size=32, use_multiprocessing=True, workers=6)
     print(f"Rhythm model loss: {score[1]:.4f}; Melody model loss: {score[2]:.4f}")

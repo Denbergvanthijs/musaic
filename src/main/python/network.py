@@ -24,9 +24,8 @@ if PLAYER in (VER_9, EUROAI):
     from v9.Nets.MetaPredictorEuro import MetaPredictor
 
 if PLAYER == SMT22:
-    from keras_nlp.layers import SinePositionEncoding
+    import tensorflow as tf
     from smt22.utils import preprocess
-    from tensorflow.keras.models import load_model
     from v9.Nets.ChordNetwork import ChordNetwork
 
 
@@ -435,13 +434,16 @@ class TransformerNet(NeuralNet):
         - Uses a Transformer instead of an LSTM
         - Changed try-except to if-else for callbacks
         """
-        print("[NeuralNet] Initialising...")  # TODO: Change prints to logging
         self.loaded = False  # Set to true when model is loaded
+        print("[NeuralNet] Initialising...")  # TODO: Change prints to logging
         time_start = time.time()
 
         print("[NeuralNet] === Using SMT22 model ===")
-        custom_objects = {"SinePositionEncoding": SinePositionEncoding}
-        self.model = load_model("./src/main/python/smt22/model.h5", custom_objects=custom_objects)
+        self.interpreter = tf.lite.Interpreter("./src/main/python/smt22/model.tflite")
+        self.interpreter.allocate_tensors()
+
+        self.input_details = self.interpreter.get_input_details()
+        self.output_details = self.interpreter.get_output_details()
 
         fp_euroai = "./src/main/resources/base/euroAI/"
         fp_chord_network = os.path.join(fp_euroai, "chord")
@@ -482,14 +484,14 @@ class TransformerNet(NeuralNet):
 
         print(f"[NeuralNet] Neural network loaded in {int(time.time() - time_start)} seconds")
 
-        self.loaded = True  # Set to true when model is loaded
-
         if init_callbacks:  # Call any callbacks
             if not hasattr(init_callbacks, "__iter__"):  # Check if iterable
                 init_callbacks = [init_callbacks]
 
             for f in init_callbacks:
                 f()
+
+        self.loaded = True  # Set to true when model is loaded
 
     def generateBar(self, octave: int = 4, **kwargs) -> list:
         """Generate a bar of music.
@@ -506,10 +508,16 @@ class TransformerNet(NeuralNet):
         model_input_preprocessed = preprocess(model_input)
 
         # Generate output
-        model_output = self.model.predict(x=model_input_preprocessed)
+        for c, data in enumerate(model_input_preprocessed):
+            self.interpreter.set_tensor(self.input_details[c]["index"], data)
+
+        self.interpreter.invoke()
+
+        rhythm_output = self.interpreter.get_tensor(self.output_details[0]["index"])
+        melody_output = self.interpreter.get_tensor(self.output_details[1]["index"])
 
         # Postprocess output
-        sampled_rhythm, sampled_melody, sampled_chords = self.sampleOutput(model_output, kwargs)  # Postprocess output
+        sampled_rhythm, sampled_melody, sampled_chords = self.sampleOutput([rhythm_output, melody_output], kwargs)  # Postprocess output
         return self.convertContextToNotes(sampled_rhythm[0], sampled_melody[0], sampled_chords, kwargs, octave=octave)
 
 
@@ -526,23 +534,35 @@ class NetworkEngine(multiprocessing.Process):
 
         self.network = None
 
+    def load_network(self):
+        """Load the network.
+
+        Changes from the original:
+        - Moved the network loading to this method
+        """
+        if PLAYER in (VER_9, EUROAI):
+            self.network = NeuralNet(resources_path=self.resources_path, init_callbacks=self.init_callbacks)
+
+        elif PLAYER == SMT22:
+            self.network = TransformerNet(resources_path=self.resources_path, init_callbacks=self.init_callbacks)
+
+        elif PLAYER == RANDOM:
+            self.network = RandomPlayer()
+
+        else:
+            raise ValueError(f"Invalid player type: {PLAYER}")
+
+        print("[NetworkEngine] network loaded")
+
     def run(self) -> None:
         """Starts the network engine process.
 
         Changes from the original:
         - Added support for the TransformerNet
+        - Moved the network loading to the load_network method
         """
-        if not self.network:
-            if PLAYER in (VER_9, EUROAI):
-                self.network = NeuralNet(resources_path=self.resources_path, init_callbacks=self.init_callbacks)
-
-            elif PLAYER == SMT22:
-                self.network = TransformerNet(resources_path=self.resources_path, init_callbacks=self.init_callbacks)
-
-            elif PLAYER == RANDOM:
-                self.network = RandomPlayer()
-
-            print("[NetworkEngine] network loaded")
+        if not self.network:  # If the network is not loaded, load it
+            self.load_network()
 
         while not self.stopRequest.is_set():
             try:
@@ -562,6 +582,9 @@ class NetworkEngine(multiprocessing.Process):
 
     def isLoaded(self) -> bool:
         """Returns True if the network is loaded, False otherwise."""
+        if not self.network:  # Check if any network has been assigned yet
+            return False
+
         return self.network.loaded
 
     def join(self, timeout=1):
