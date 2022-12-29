@@ -72,12 +72,12 @@ if __name__ == "__main__":
 
     lr_schedule = PolynomialDecay(initial_learning_rate=0.01, decay_steps=1_000, end_learning_rate=0.0005)
     opt = Adam(learning_rate=0.005, beta_1=0.95, beta_2=0.99, clipnorm=1.0)
-    model.compile(optimizer=opt, loss="categorical_crossentropy", metrics=["accuracy"], loss_weights=[4, 48])
+    model.compile(optimizer=opt, loss="categorical_crossentropy", metrics=["accuracy"], loss_weights=[1 / 12, 1])
 
     model.summary()
     plot_model(model, to_file="./src/main/python/smt22/model_thijs.png", show_shapes=True, dpi=300)
 
-    hist_model = model.fit(Xs, ys, epochs=1, verbose=1, batch_size=64, validation_split=0.1,
+    hist_model = model.fit(Xs, ys, epochs=10, verbose=1, batch_size=32, validation_split=0.15,
                            shuffle=True, use_multiprocessing=True, workers=6, callbacks=[tensorboard_cb])
 
     converter = tf.lite.TFLiteConverter.from_keras_model(model)

@@ -9,7 +9,7 @@ from tensorflow.keras.regularizers import l2
 
 def rhythm_encoder():
     rhythm_input = Input(shape=(16, ), name="rhythm_input")
-    rhythm_embedding = Embedding(input_dim=129, output_dim=12, name="rhythm_embedding")(rhythm_input)
+    rhythm_embedding = Embedding(input_dim=129, output_dim=150, name="rhythm_embedding")(rhythm_input)
 
     positional_encoding = SinePositionEncoding()(rhythm_embedding)
     rhythm_embedding_pos = rhythm_embedding + positional_encoding
@@ -22,7 +22,7 @@ def rhythm_encoder():
 
 def melody_encoder():
     melody_input = Input(shape=(192,), name="melody_input")
-    melody_embedding = Embedding(input_dim=512, output_dim=12, name="melody_embedding")(melody_input)
+    melody_embedding = Embedding(input_dim=512, output_dim=150, name="melody_embedding")(melody_input)
 
     positional_encoding = SinePositionEncoding()(melody_embedding)
     melody_embedding_pos = melody_embedding + positional_encoding
@@ -43,7 +43,7 @@ def meta_encoder(process_meta: bool = True):
 
 def lead_rhythm_encoder():
     lead_rhythm_input = Input(shape=(4,), name="lead_rhythm_input")
-    lead_rhythm_embedding = Embedding(input_dim=129, output_dim=12, name="lead_rhythm_embedding")(lead_rhythm_input)
+    lead_rhythm_embedding = Embedding(input_dim=129, output_dim=150, name="lead_rhythm_embedding")(lead_rhythm_input)
 
     positional_encoding = SinePositionEncoding()(lead_rhythm_embedding)
     lead_rhythm_embedding_pos = lead_rhythm_embedding + positional_encoding
@@ -57,7 +57,7 @@ def lead_rhythm_encoder():
 
 def lead_melody_encoder():
     lead_melody_input = Input(shape=(48,), name="lead_melody_input")
-    lead_melody_embedding = Embedding(input_dim=512, output_dim=12, name="lead_melody_embedding")(lead_melody_input)
+    lead_melody_embedding = Embedding(input_dim=512, output_dim=150, name="lead_melody_embedding")(lead_melody_input)
 
     positional_encoding = SinePositionEncoding()(lead_melody_embedding)
     lead_melody_embedding_pos = lead_melody_embedding + positional_encoding
@@ -114,7 +114,7 @@ def build_model(output_length_rhythm: int, n_repeat_rhythm: int, output_length_m
     # Concat leads
     concat_leads = Concatenate(axis=1, name="concat_leads")([lead_rhythm_attention, lead_melody_attention])
     concat_leads = GlobalAveragePooling1D(data_format="channels_first")(concat_leads)  # Flatten the output
-    concat_leads = Dense(32, activation="relu", name="dense_leads", kernel_regularizer=l2())(concat_leads)
+    concat_leads = Dense(32, activation="relu", name="dense_leads", kernel_regularizer=l2(0.001))(concat_leads)
 
     # Concat all inputs
     concat = Concatenate(axis=1, name="concat_all")([concat_context, concat_leads, meta_dense])  # Concatenate the outputs of the encoders
