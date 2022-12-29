@@ -45,14 +45,13 @@ class DataGenerator:
             pathlib.PosixPath = pathlib.WindowsPath
 
         for f in files:
-            fp = self.path / f
-            with open(fp, "rb") as handle:
+            with open(self.path / f, "rb") as handle:
                 songs = pickle.load(handle)
 
-                for s in songs:
+                for song in songs:
                     if self.to_list:
-                        self.raw_songs.append(s)
-                    yield s
+                        self.raw_songs.append(song)
+                    yield song
 
         if os.name == "nt":
             pathlib.PosixPath = temp  # Restore the PosixPath class
@@ -68,29 +67,30 @@ class DataGenerator:
     def get_num_pieces(self):
         instrument_nums = [song["instruments"] for song in self.load_songs()]
         self.num_pieces = sum(instrument_nums)
+
         return instrument_nums
 
-    def prepare_metaData(self, metaData, repeat=0):
+    def prepare_metaData(self, metaData: dict, repeat: int = 0) -> np.ndarray:
         if not "metaData" in self.conversion_params:
             self.conversion_params["metaData"] = sorted(metaData.keys())
+
             if self.save_params_eager:
                 self.save_conversion_params()
-        meta_keys = self.conversion_params["metaData"]
 
+        meta_keys = self.conversion_params["metaData"]
         if not meta_keys == sorted(metaData.keys()):
             raise ValueError("DataGenerator.prepare_metaData received metaData with different keys!")
 
-        values = np.zeros(shape=(10,))
-
         i = 0
+        values = np.zeros(shape=(10,))
         for k in meta_keys:
             if k == "ts":
                 frac = Fraction(metaData[k], _normalize=False)
-                # values.extend([frac.numerator, frac.denominator])
                 values[i: i + 2] = [frac.numerator, frac.denominator]
                 i += 2
             else:
-                assert isinstance(metaData[k], (float, int))
+                assert isinstance(
+                    metaData[k], (float, int)), f"DataGenerator.prepare_metaData: Expected metaData[{k}] to be a float or int, received {type(metaData[k])}"
                 values[i] = metaData[k]
                 i += 1
 
@@ -129,9 +129,7 @@ class DataGenerator:
 
 class RhythmGenerator(DataGenerator):
     def __init__(self, path, save_conversion_params=True, to_list=False):
-        super().__init__(path,
-                         save_conversion_params=save_conversion_params,
-                         to_list=to_list)
+        super().__init__(path, save_conversion_params=save_conversion_params, to_list=to_list)
         song_iter = self.get_rhythms(with_metaData=False)
         label_f, self.label_d = label([beat
                                        for s in song_iter
@@ -145,15 +143,13 @@ class RhythmGenerator(DataGenerator):
             self.save_conversion_params()
 
     def get_rhythms(self, with_metaData=True):
-        yield from self.get_songs(lambda d: d.__getitem__("rhythm"),
-                                  with_metaData=with_metaData)
+        yield from self.get_songs(lambda d: d.__getitem__("rhythm"), with_metaData=with_metaData)
 
     def generate_data(self, context_size=1, with_rhythms=True, with_metaData=True):
         song_iter = self.get_rhythms(with_metaData=True)
 
         for rhythms, meta in song_iter:
-            rhythms_labeled, context_ls = self.prepare_piece(rhythms,
-                                                             context_size)
+            rhythms_labeled, context_ls = self.prepare_piece(rhythms, context_size)
 
             if with_rhythms:
                 context_ls.append(rhythms_labeled)
@@ -162,7 +158,7 @@ class RhythmGenerator(DataGenerator):
                 prepared_meta = np.array(list(map(self.prepare_metaData, meta)))
                 context_ls.append(prepared_meta)
 
-                yield (context_ls, to_categorical(rhythms_labeled, num_classes=self.V))
+                yield context_ls, to_categorical(rhythms_labeled, num_classes=self.V)
 
     def prepare_piece(self, rhythms, context_size):
         bar_len = len(rhythms[0])
@@ -171,20 +167,18 @@ class RhythmGenerator(DataGenerator):
 
         padded_rhythms = [null_bar] * context_size + rhythms_labeled
         contexts = [padded_rhythms[i:-(context_size - i)] for i in range(context_size)]
+
         return np.asarray(rhythms_labeled), list(map(np.asarray, contexts))
 
 
 class MelodyGenerator(DataGenerator):
-    def __init__(self, path, save_conversion_params=True, to_list=False):
-        super().__init__(path,
-                         save_conversion_params=save_conversion_params,
-                         to_list=to_list)
+    def __init__(self, path, save_conversion_params=True, to_list: bool = False):
+        super().__init__(path, save_conversion_params=save_conversion_params, to_list=to_list)
         self.V = 25
         self.null_elem = 0
 
-    def get_notevalues(self, with_metaData=True):
-        song_iter = self.get_songs(lambda d: d["melody"]["notes"],
-                                   with_metaData=with_metaData)
+    def get_notevalues(self, with_metaData: bool = True):
+        song_iter = self.get_songs(lambda d: d["melody"]["notes"], with_metaData=with_metaData)
 
         if with_metaData:
             for melodies, meta in song_iter:
@@ -195,11 +189,10 @@ class MelodyGenerator(DataGenerator):
                 melodies_None_replaced = [list(0 if n is None else n for n in bar) for bar in melodies]
                 yield melodies_None_replaced
 
-    def generate_data(self, context_size=1, with_metaData=True):
+    def generate_data(self, context_size: int = 1, with_metaData: bool = True):
         song_iter = self.get_notevalues(with_metaData=True)
         for melodies, meta in song_iter:
-            melodies_mat, contexts = self.prepare_piece(melodies,
-                                                        context_size)
+            melodies_mat, contexts = self.prepare_piece(melodies, context_size)
 
             melodies_y = to_categorical(melodies_mat, num_classes=self.V)
             melodies_y[:, :, 0] = 0.
@@ -207,14 +200,11 @@ class MelodyGenerator(DataGenerator):
             if with_metaData:
                 prepared_meta = np.array(list(map(self.prepare_metaData, meta)))
 
-                yield ([contexts,
-                        prepared_meta],
-                       melodies_y)
+                yield [contexts, prepared_meta], melodies_y
             else:
-                yield (contexts,
-                       melodies_y)
+                yield contexts, melodies_y
 
-    def prepare_piece(self, melodies, context_size):
+    def prepare_piece(self, melodies, context_size: int):
         bar_len = len(melodies[0])
         null_bar = (self.null_elem, ) * bar_len
 
@@ -224,6 +214,7 @@ class MelodyGenerator(DataGenerator):
         padded_melodies = [null_bar] * context_size + filled_melodies
         contexts = [padded_melodies[i:-(context_size - i)] for i in range(context_size)]
         contexts = np.transpose(np.asarray(contexts), axes=(1, 0, 2))
+
         return melodies_mat, contexts
 
     def fill_melodies(self, melodies):
@@ -245,52 +236,40 @@ class MelodyGenerator(DataGenerator):
 
 
 class CombinedGenerator(DataGenerator):
-    def __init__(self, path,
-                 save_conversion_params=True,
-                 to_list=False):
-        super().__init__(path,
-                         save_conversion_params=save_conversion_params,
-                         to_list=to_list)
-        self.rhythm_gen = RhythmGenerator(path,
-                                          save_conversion_params=save_conversion_params,
-                                          to_list=to_list)
-        self.melody_gen = MelodyGenerator(path,
-                                          save_conversion_params=save_conversion_params,
-                                          to_list=to_list)
+    def __init__(self, path, save_conversion_params=True, to_list: int = False):
+        super().__init__(path, save_conversion_params=save_conversion_params, to_list=to_list)
+        self.rhythm_gen = RhythmGenerator(path, save_conversion_params=save_conversion_params, to_list=to_list)
+        self.melody_gen = MelodyGenerator(path, save_conversion_params=save_conversion_params, to_list=to_list)
 
         self.rhythm_V = self.rhythm_gen.V
         self.melody_V = self.melody_gen.V
 
-    def generate_data(self, rhythm_context_size=1, melody_context_size=1,
-                      with_metaData=True):
-
-        rhythm_iter = self.rhythm_gen.generate_data(rhythm_context_size,
-                                                    with_rhythms=True,
-                                                    with_metaData=with_metaData)
-        melody_iter = self.melody_gen.generate_data(melody_context_size,
-                                                    with_metaData=False)
+    def generate_data(self, rhythm_context_size: int = 1, melody_context_size: int = 1, with_metaData: bool = True):
+        rhythm_iter = self.rhythm_gen.generate_data(rhythm_context_size, with_rhythms=True, with_metaData=with_metaData)
+        melody_iter = self.melody_gen.generate_data(melody_context_size, with_metaData=False)
 
         if with_metaData:
             for (cur_rhythm, cur_melody) in zip(rhythm_iter, melody_iter):
                 (*rhythm_x, rhythms, meta), rhythm_y = cur_rhythm
                 melody_x, melody_y = cur_melody
+
                 yield [*rhythm_x, rhythms, melody_x, meta], [rhythm_y, melody_y]
         else:
             for (cur_rhythm, cur_melody) in zip(rhythm_iter, melody_iter):
                 (*rhythm_x, rhythms), rhythm_y = cur_rhythm
                 melody_x, melody_y = cur_melody
+
                 yield [*rhythm_x, rhythms, melody_x], [rhythm_y, melody_y]
 
 
-#cg = CombinedGenerator("Data/oldfiles", save_conversion_params=0)
-#
-#ls = list(cg.generate_data(rhythm_context_size=2, melody_context_size=2, with_metaData=0))
-#
-#rg = RhythmGenerator("Data/oldfiles", save_conversion_params=0)
-#
-#
-#ls = list(rg.generate_data(context_size=2, with_rhythms=0, with_metaData=0))
-#
-#xs, ys = list(zip(*ls))
-#
-#cs1, cs2 = list(zip(*xs))
+# cg = CombinedGenerator("Data/oldfiles", save_conversion_params=0)
+
+# ls = list(cg.generate_data(rhythm_context_size=2, melody_context_size=2, with_metaData=0))
+
+# rg = RhythmGenerator("Data/oldfiles", save_conversion_params=0)
+
+# ls = list(rg.generate_data(context_size=2, with_rhythms=0, with_metaData=0))
+
+# xs, ys = list(zip(*ls))
+
+# cs1, cs2 = list(zip(*xs))
