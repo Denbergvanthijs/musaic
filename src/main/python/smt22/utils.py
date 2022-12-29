@@ -54,6 +54,9 @@ def preprocess(X, y=None, process_meta: bool = True):
     X_processed = [x.astype(np.float32) for x in X_processed]  # Necessary for tf.lite
 
     if y is not None:
+        # Permute the dimensions of y to be (batch_size, n_repeats, output_shape)
+        y[0] = np.transpose(y[0], (0, 2, 1))
+        y[1] = np.transpose(y[1], (0, 2, 1))
         return X_processed, y[0], y[1]
 
     return X_processed
@@ -78,10 +81,10 @@ def valid_input(X, y_rhythm, y_melody, process_meta: bool = True) -> bool:
     if lead_melody.shape[-1] != 48:
         return False
 
-    if y_rhythm.shape[-1] != 127:
+    if y_rhythm.shape[-2] != 127:
         return False
 
-    if y_melody.shape[-1] != 25:
+    if y_melody.shape[-2] != 25:
         return False
 
     return True
