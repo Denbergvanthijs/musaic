@@ -85,8 +85,8 @@ if __name__ == "__main__":
     fp_logs = os.path.join("./src/main/python/smt22/logs", datetime.now().strftime("%Y%m%d_%H%M%S"))
     tensorboard_cb = TensorBoard(log_dir=fp_logs, histogram_freq=1)
 
-    lr_schedule = PolynomialDecay(initial_learning_rate=0.01, decay_steps=1_000, end_learning_rate=0.0005)
-    opt = Adam(learning_rate=lr_schedule, beta_1=0.95, beta_2=0.99, clipnorm=3.0)
+    # lr_schedule = PolynomialDecay(initial_learning_rate=0.001, decay_steps=1_000, end_learning_rate=0.0005)
+    opt = Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, clipnorm=None)
     model.compile(optimizer=opt, loss="binary_crossentropy", metrics=["accuracy"], loss_weights=[1, 1])
 
     model.summary()
