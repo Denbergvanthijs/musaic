@@ -1,8 +1,9 @@
 from keras_nlp.layers import SinePositionEncoding
+from tensorflow.keras import backend as K
 from tensorflow.keras.layers import (LSTM, BatchNormalization, Bidirectional,
-                                     Concatenate, Dense, Dropout, Embedding,
-                                     GlobalAveragePooling1D, Input,
-                                     MultiHeadAttention, RepeatVector,
+                                     Concatenate, Conv1D, Dense, Dropout,
+                                     Embedding, GlobalAveragePooling1D, Input,
+                                     Lambda, MultiHeadAttention, RepeatVector,
                                      TimeDistributed)
 from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
@@ -160,7 +161,15 @@ def meta_encoder_original():
     return input_layer, out_layer
 
 
-def build_original_rhythm(output_length_rhythm: int, n_repeat_rhythm: int):
+def melody_encoder_original(conv_win_size: int = 3):
+    input_layer = Input(shape=(None, 48))
+    conved = Conv1D(4, conv_win_size, activation="relu", padding="same")(input_layer)
+    out_layer = LSTM(52)(conved)
+
+    return input_layer, out_layer
+
+
+def build_original_rhythm(output_length_rhythm: int, n_repeat_rhythm: int, output_length_melody: int, n_repeat_melody: int):
     rhythm_input_1, rhythm_out_1 = rhythm_encoder_original()
     rhythm_input_2, rhythm_out_2 = rhythm_encoder_original()
     rhythm_input_3, rhythm_out_3 = rhythm_encoder_original()
@@ -170,11 +179,27 @@ def build_original_rhythm(output_length_rhythm: int, n_repeat_rhythm: int):
 
     meta_input, meta_out = meta_encoder_original()
 
-    embeddings_processed = Concatenate()([rhythm_out_1, rhythm_out_2, rhythm_out_3, rhythm_out_4, meta_out, lead_rhythm_out])
-    repeat_layer = RepeatVector(n_repeat_rhythm)(embeddings_processed)
+    melody_input, melody_out = melody_encoder_original(conv_win_size=3)
+    lead_melody_input, lead_melody_out = melody_encoder_original(conv_win_size=1)
 
-    decoded = LSTM(10, return_sequences=True, name="rhythm_lstm")(repeat_layer)
-    preds = TimeDistributed(Dense(output_length_rhythm, activation="softmax"), name="rhythm_decoder")(decoded)
+    concat_rhythm = Concatenate()([rhythm_out_1, rhythm_out_2, rhythm_out_3, rhythm_out_4, meta_out, lead_rhythm_out])
+    repeat_rhythm = RepeatVector(n_repeat_rhythm)(concat_rhythm)
 
-    inputs = [rhythm_input_1, rhythm_input_2, rhythm_input_3, rhythm_input_4, meta_input, lead_rhythm_input]
-    return Model(inputs=inputs, outputs=preds)
+    decoded_rhythm = LSTM(10, return_sequences=True, name="rhythm_lstm")(repeat_rhythm)
+    preds_rhythm = TimeDistributed(Dense(output_length_rhythm, activation="softmax"), name="rhythm_decoder")(decoded_rhythm)
+
+    rhythms_embedded = Lambda(lambda probs: K.argmax(probs), output_shape=(None,))(preds_rhythm)
+    rhythms_embedded = Embedding(input_dim=129, output_dim=12)(rhythms_embedded)
+    rhythms_embedded = Bidirectional(LSTM(12), merge_mode="concat")(rhythms_embedded)
+    rhythms_embedded = Dense(8)(rhythms_embedded)
+
+    concat_melody = Concatenate()([melody_out, rhythms_embedded])
+    concat_melody = Concatenate()([concat_melody, meta_out])
+    concat_melody = Concatenate()([concat_melody, lead_melody_out])
+    repeated_melody = RepeatVector(n_repeat_melody)(concat_melody)
+    lstm_melody = LSTM(32, return_sequences=True)(repeated_melody)
+    preds_melody = TimeDistributed(Dense(output_length_melody, activation="softmax"), name="melody_decoder")(lstm_melody)
+
+    inputs = [rhythm_input_1, rhythm_input_2, rhythm_input_3, rhythm_input_4,
+              melody_input, meta_input, lead_rhythm_input, lead_melody_input]
+    return Model(inputs=inputs, outputs=[preds_rhythm, preds_melody])
