@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plots(history):
+def plots(history, metric="accuracy"):
     """Plots the loss and accuracy of both the rhythm and melody models."""
     fig, axs = plt.subplots(1, 2, figsize=(15, 5))
 
@@ -11,13 +11,13 @@ def plots(history):
     axs[0].plot(history.history["val_rhythm_decoder_loss"], label="Rhythm val loss")
     axs[0].plot(history.history["val_melody_decoder_loss"], label="Melody val loss")
 
-    axs[1].plot(history.history["rhythm_decoder_accuracy"], label="Rhythm accuracy")
-    axs[1].plot(history.history["melody_decoder_accuracy"], label="Melody accuracy")
-    axs[1].plot(history.history["val_rhythm_decoder_accuracy"], label="Rhythm val accuracy")
-    axs[1].plot(history.history["val_melody_decoder_accuracy"], label="Melody val accuracy")
+    axs[1].plot(history.history[f"rhythm_decoder_{metric}"], label=f"Rhythm {metric}")
+    axs[1].plot(history.history[f"melody_decoder_{metric}"], label=f"Melody {metric}")
+    axs[1].plot(history.history[f"val_rhythm_decoder_{metric}"], label=f"Rhythm val {metric}")
+    axs[1].plot(history.history[f"val_melody_decoder_{metric}"], label=f"Melody val {metric}")
 
     axs[0].set_title("Loss")
-    axs[1].set_title("Accuracy")
+    axs[1].set_title(f"{metric.capitalize()}")
     axs[0].legend()
     axs[1].legend()
 
