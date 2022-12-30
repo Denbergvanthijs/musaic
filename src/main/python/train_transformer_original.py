@@ -48,10 +48,10 @@ if __name__ == "__main__":
             X1_3.append(context_rhythms[row][8:12])
             X1_4.append(context_rhythms[row][12:])
 
-            X2.append(context_melodies[row])
+            X2.append(context_melodies[row].reshape(4, 48))
             X3.append(meta[row])
             X4.append(lead_rhythm[row])
-            X5.append(lead_melody[row])
+            X5.append(lead_melody[row].reshape(1, 48))
 
             ys_rhythm.append(y_rhythm[row])
             ys_melody.append(y_melody[row])
@@ -59,12 +59,15 @@ if __name__ == "__main__":
         # if c == 4:  # Early stop for testing
         #     break
 
-    Xs = [np.array(X1_1), np.array(X1_2), np.array(X1_3), np.array(X1_4), np.array(X3), np.array(X4)]
+    Xs = [np.array(X1_1), np.array(X1_2), np.array(X1_3), np.array(X1_4), np.array(X2), np.array(X3), np.array(X4), np.array(X5)]
     ys = [np.array(ys_rhythm), np.array(ys_melody)]
 
-    print(f"Xs: {len(Xs)} tracks; {Xs[0].shape} {Xs[1].shape} {Xs[2].shape} {Xs[3].shape} {Xs[4].shape} {Xs[5].shape}")
-    print(f"Max values: {np.max(Xs[0])} {np.max(Xs[1])} {np.max(Xs[2])} {np.max(Xs[3])} {np.max(Xs[4])} {np.max(Xs[5])}")
-    print(f"Min values: {np.min(Xs[0])} {np.min(Xs[1])} {np.min(Xs[2])} {np.min(Xs[3])} {np.min(Xs[4])} {np.min(Xs[5])}")
+    print(
+        f"Xs: {len(Xs)} tracks; {Xs[0].shape} {Xs[1].shape} {Xs[2].shape} {Xs[3].shape} {Xs[4].shape} {Xs[5].shape} {Xs[6].shape} {Xs[7].shape}")
+    print(
+        f"Max values: {np.max(Xs[0])} {np.max(Xs[1])} {np.max(Xs[2])} {np.max(Xs[3])} {np.max(Xs[4])} {np.max(Xs[5])} {np.max(Xs[6])} {np.max(Xs[7])}")
+    print(
+        f"Min values: {np.min(Xs[0])} {np.min(Xs[1])} {np.min(Xs[2])} {np.min(Xs[3])} {np.min(Xs[4])} {np.min(Xs[5])} {np.min(Xs[6])} {np.min(Xs[7])}")
     print(f"ys_rhythm: {ys[0].shape}; ys_melody: {ys[1].shape}")
     print(f"Max values: {np.max(ys[0])} {np.max(ys[1])}")
     print(f"Min values: {np.min(ys[0])} {np.min(ys[1])}")
@@ -72,31 +75,32 @@ if __name__ == "__main__":
 
     # Shape is (batch_size, n_repeats, output_shape)
     # model = build_simple_model(output_length_rhythm=4, n_repeat_rhythm=127, output_length_melody=48, n_repeat_melody=25)
-    model = build_original_rhythm(output_length_rhythm=4, n_repeat_rhythm=127)
+    model = build_original_rhythm(output_length_rhythm=4, n_repeat_rhythm=127, output_length_melody=48, n_repeat_melody=25)
 
     fp_logs = os.path.join("./src/main/python/smt22/logs", datetime.now().strftime("%Y%m%d_%H%M%S"))
     tensorboard_cb = TensorBoard(log_dir=fp_logs, histogram_freq=1)
 
     # lr_schedule = PolynomialDecay(initial_learning_rate=0.01, decay_steps=1_000, end_learning_rate=0.0005)
     opt = Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, clipnorm=None)
-    model.compile(optimizer=opt, loss="categorical_crossentropy", metrics=["categorical_accuracy"])
+    model.compile(optimizer=opt, loss=["categorical_crossentropy", "categorical_crossentropy"],
+                  metrics=["categorical_accuracy"], loss_weights=[0.5, 0.5])
 
     model.summary()
     plot_model(model, to_file="./src/main/python/smt22/model_thijs.png", show_shapes=True, dpi=300)
 
-    hist_model = model.fit(Xs, np.array(ys_rhythm), epochs=10, verbose=1, batch_size=24, validation_split=0.15,
+    hist_model = model.fit(Xs, ys, epochs=10, verbose=1, batch_size=24, validation_split=0.15,
                            shuffle=True, use_multiprocessing=True, workers=6, callbacks=[tensorboard_cb])
 
-    converter = tf.lite.TFLiteConverter.from_keras_model(model)
-    converter.optimizations = [tf.lite.Optimize.DEFAULT]
-    tflite_model = converter.convert()
+    # converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    # converter.optimizations = [tf.lite.Optimize.DEFAULT]
+    # tflite_model = converter.convert()
 
-    # Save the model
-    with open("./src/main/python/smt22/model.tflite", 'wb') as file:
-        file.write(tflite_model)
+    # # Save the model
+    # with open("./src/main/python/smt22/model.tflite", "wb") as file:
+    #     file.write(tflite_model)
 
-    score = model.evaluate(Xs, np.array(ys_rhythm), verbose=1, batch_size=32, use_multiprocessing=True, workers=6)
+    score = model.evaluate(Xs, ys, verbose=1, batch_size=32, use_multiprocessing=True, workers=6)
     print(f"Rhythm model loss: {score[1]:.4f}; Melody model loss: {score[2]:.4f}")
     print(f"Rhythm model accuracy: {score[3]:.4f}; Melody model accuracy: {score[4]:.4f}")
 
-    plots(hist_model)
+    plots(hist_model, metric="categorical_accuracy")
