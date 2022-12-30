@@ -232,7 +232,11 @@ def build_original(output_length_rhythm: int, n_repeat_rhythm: int, output_lengt
 
 
 def build_original_rhythm(output_length_rhythm: int, n_repeat_rhythm: int):
-    """Build the original V9/EuroAI rhythm model. Tries to replicate the original model as closely as possible."""
+    """Build the original V9/EuroAI rhythm model. Tries to replicate the original model as closely as possible.
+
+    Difference from build_original():
+    - Seperate models for rhythm and melody
+    """
     rhythm_input_1, rhythm_out_1 = rhythm_encoder_original()
     rhythm_input_2, rhythm_out_2 = rhythm_encoder_original()
     rhythm_input_3, rhythm_out_3 = rhythm_encoder_original()
@@ -256,6 +260,9 @@ def build_original_melody(output_length_rhythm: int, n_repeat_rhythm: int, outpu
     """Build the original V9/EuroAI melody model. Tries to replicate the original model as closely as possible.
 
     Uses the same first few layers as the rhythm model, but then continues with the melody model.
+
+    Difference from build_original():
+    - Seperate models for rhythm and melody
     """
     rhythm_input_1, rhythm_out_1 = rhythm_encoder_original()
     rhythm_input_2, rhythm_out_2 = rhythm_encoder_original()
