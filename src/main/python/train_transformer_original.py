@@ -4,7 +4,7 @@ from datetime import datetime
 
 import numpy as np
 import tensorflow as tf
-from smt22.models import build_model, build_original_rhythm, build_simple_model
+from smt22.models import build_original
 from smt22.utils import plots, preprocess, valid_input
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.optimizers import Adam
@@ -74,8 +74,7 @@ if __name__ == "__main__":
     print(f"Skipped {cnt} ({cnt/sum(num_pieces)*100:.0f}%) tracks because of wrong shape")
 
     # Shape is (batch_size, n_repeats, output_shape)
-    # model = build_simple_model(output_length_rhythm=4, n_repeat_rhythm=127, output_length_melody=48, n_repeat_melody=25)
-    model = build_original_rhythm(output_length_rhythm=4, n_repeat_rhythm=127, output_length_melody=48, n_repeat_melody=25)
+    model = build_original(output_length_rhythm=4, n_repeat_rhythm=127, output_length_melody=48, n_repeat_melody=25)
 
     fp_logs = os.path.join("./src/main/python/smt22/logs", datetime.now().strftime("%Y%m%d_%H%M%S"))
     tensorboard_cb = TensorBoard(log_dir=fp_logs, histogram_freq=1)
