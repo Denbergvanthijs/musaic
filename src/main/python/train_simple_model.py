@@ -35,7 +35,7 @@ if __name__ == "__main__":
     Xs = []
     ys_rhythm, ys_melody = [], []
     for c, (X, y) in enumerate(data_iter):
-        X, y_rhythm, y_melody = preprocess(X, y)  # Preprocess a single track
+        X, y_rhythm, y_melody = preprocess(X, y, normalisation=False)  # Preprocess a single track
 
         if not valid_input(X, y_rhythm, y_melody):
             cnt += 1
@@ -58,9 +58,8 @@ if __name__ == "__main__":
     ys_melody = np.array(ys_melody)
     ys = [ys_rhythm, ys_melody]
 
-    print(f"Xs: {len(Xs)} tracks; {Xs[0].shape} {Xs[1].shape} {Xs[2].shape} {Xs[3].shape} {Xs[4].shape}")
-    print(f"Max values: {np.max(Xs[0])} {np.max(Xs[1])} {np.max(Xs[2])} {np.max(Xs[3])} {np.max(Xs[4])}")
-    print(f"Min values: {np.min(Xs[0])} {np.min(Xs[1])} {np.min(Xs[2])} {np.min(Xs[3])} {np.min(Xs[4])}")
+    print(f"Xs: {Xs.shape}")
+    print(f"Max values: {np.max(Xs)}, Min values: {np.min(Xs)}")
     print(f"ys_rhythm: {ys[0].shape}; ys_melody: {ys[1].shape}")
     print(f"Max values: {np.max(ys[0])} {np.max(ys[1])}")
     print(f"Min values: {np.min(ys[0])} {np.min(ys[1])}")
