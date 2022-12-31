@@ -5,7 +5,7 @@ from tensorflow.keras.layers import (LSTM, BatchNormalization, Bidirectional,
                                      Embedding, GlobalAveragePooling1D, Input,
                                      Lambda, MultiHeadAttention, RepeatVector,
                                      TimeDistributed)
-from tensorflow.keras.models import Model, Sequential
+from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
 
 
