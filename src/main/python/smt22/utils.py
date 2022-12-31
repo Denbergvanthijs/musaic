@@ -25,7 +25,7 @@ def plots(history, metric="accuracy"):
     plt.show()
 
 
-def preprocess(X, y=None, process_meta: bool = True):
+def preprocess(X, y=None, process_meta: bool = True, normalisation: bool = False):
     """Preprocesses the data for the model.
 
     Max values for meta are determined based on the maximum value their knob can be set to.
@@ -53,6 +53,9 @@ def preprocess(X, y=None, process_meta: bool = True):
 
     X_processed = [context_rhythms, context_melodies, meta, lead_rhythm, lead_melody]
     X_processed = [x.astype(np.float32) for x in X_processed]  # Necessary for tf.lite
+
+    if normalisation:
+        X_processed = [context_rhythms / 127, context_melodies / 24, meta, lead_rhythm / 127, lead_melody / 24]
 
     if y is not None:
         # Permute the dimensions of y to be (batch_size, n_repeats, output_shape)
