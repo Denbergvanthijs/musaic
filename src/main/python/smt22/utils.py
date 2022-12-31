@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from tensorflow.keras import backend as K
 
 
 def plots(history, metric="accuracy"):
@@ -88,3 +89,15 @@ def valid_input(X, y_rhythm, y_melody, process_meta: bool = True) -> bool:
         return False
 
     return True
+
+
+def f1_custom(y_true, y_pred):
+    """F1 metric. Inspired by https://datascience.stackexchange.com/a/45166."""
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+
+    precision = true_positives / (predicted_positives + K.epsilon())
+    recall = true_positives / (possible_positives + K.epsilon())
+    return 2 * ((precision * recall) / (precision + recall + K.epsilon()))
