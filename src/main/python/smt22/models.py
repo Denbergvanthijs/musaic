@@ -5,7 +5,7 @@ from tensorflow.keras.layers import (LSTM, BatchNormalization, Bidirectional,
                                      Embedding, GlobalAveragePooling1D, Input,
                                      Lambda, MultiHeadAttention, RepeatVector,
                                      TimeDistributed)
-from tensorflow.keras.models import Model
+from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.regularizers import l2
 
 
@@ -147,13 +147,34 @@ def build_simple_model(output_length_rhythm: int, n_repeat_rhythm: int, output_l
 
     rhythm_model = RepeatVector(n_repeat_rhythm)(dense_input)
     rhythm_model = Dense(64, activation="relu")(rhythm_model)
-    rhythm_model = TimeDistributed(Dense(output_length_rhythm, activation="softmax"), name="rhythm_decoder")(rhythm_model)
+    rhythm_model = Dropout(0.2)(rhythm_model)
+    rhythm_model = TimeDistributed(Dense(output_length_rhythm, activation="relu"), name="rhythm_decoder")(rhythm_model)
 
     melody_model = RepeatVector(n_repeat_melody)(dense_input)
     melody_model = Dense(64, activation="relu")(melody_model)
-    melody_model = TimeDistributed(Dense(output_length_melody, activation="softmax"), name="melody_decoder")(melody_model)
+    melody_model = Dropout(0.2)(melody_model)
+    melody_model = TimeDistributed(Dense(output_length_melody, activation="relu"), name="melody_decoder")(melody_model)
 
     return Model(inputs=input_layer, outputs=[rhythm_model, melody_model])
+
+
+def build_simpler_model(output_length_rhythm: int, n_repeat_rhythm: int, output_length_melody: int, n_repeat_melody: int):
+    """Uses Keras sequential API. Outputs two seperate models."""
+    model_rhythm = Sequential()
+    model_rhythm.add(Dense(32, activation="relu", input_shape=(267,)))
+    model_rhythm.add(RepeatVector(n_repeat_rhythm))
+    model_rhythm.add(Dense(64, activation="relu"))
+    model_rhythm.add(Dropout(0.2))
+    model_rhythm.add(TimeDistributed(Dense(output_length_rhythm, activation="relu"), name="rhythm_decoder"))
+
+    model_melody = Sequential()
+    model_melody.add(Dense(32, activation="relu", input_shape=(267,)))
+    model_melody.add(RepeatVector(n_repeat_melody))
+    model_melody.add(Dense(64, activation="relu"))
+    model_melody.add(Dropout(0.2))
+    model_melody.add(TimeDistributed(Dense(output_length_melody, activation="relu"), name="melody_decoder"))
+
+    return model_rhythm, model_melody
 
 
 def rhythm_encoder_original():
