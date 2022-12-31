@@ -160,21 +160,22 @@ def build_simple_model(output_length_rhythm: int, n_repeat_rhythm: int, output_l
 
 def build_simpler_model(output_length_rhythm: int, n_repeat_rhythm: int, output_length_melody: int, n_repeat_melody: int):
     """Uses Keras sequential API. Outputs two seperate models."""
-    model_rhythm = Sequential()
-    model_rhythm.add(Dense(32, activation="relu", input_shape=(267,)))
-    model_rhythm.add(RepeatVector(n_repeat_rhythm))
-    model_rhythm.add(Dense(64, activation="relu"))
-    model_rhythm.add(Dropout(0.2))
-    model_rhythm.add(TimeDistributed(Dense(output_length_rhythm, activation="relu"), name="rhythm_decoder"))
 
-    model_melody = Sequential()
-    model_melody.add(Dense(32, activation="relu", input_shape=(267,)))
-    model_melody.add(RepeatVector(n_repeat_melody))
-    model_melody.add(Dense(64, activation="relu"))
-    model_melody.add(Dropout(0.2))
-    model_melody.add(TimeDistributed(Dense(output_length_melody, activation="relu"), name="melody_decoder"))
+    input_rhythm = Input(shape=(267,))
+    model_rhythm = Dense(32, activation="relu")(input_rhythm)
+    model_rhythm = RepeatVector(n_repeat_rhythm)(model_rhythm)
+    model_rhythm = Dense(64, activation="relu")(model_rhythm)
+    model_rhythm = Dropout(0.2)(model_rhythm)
+    model_rhythm = TimeDistributed(Dense(output_length_rhythm, activation="softmax"), name="rhythm_decoder")(model_rhythm)
 
-    return model_rhythm, model_melody
+    input_melody = Input(shape=(267,))
+    model_melody = Dense(32, activation="relu")(input_melody)
+    model_melody = RepeatVector(n_repeat_melody)(model_melody)
+    model_melody = Dense(64, activation="relu")(model_melody)
+    model_melody = Dropout(0.2)(model_melody)
+    model_melody = TimeDistributed(Dense(output_length_melody, activation="softmax"), name="melody_decoder")(model_melody)
+
+    return Model(inputs=input_rhythm, outputs=model_rhythm), Model(inputs=input_melody, outputs=model_melody)
 
 
 def rhythm_encoder_original():
