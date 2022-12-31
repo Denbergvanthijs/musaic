@@ -5,7 +5,7 @@ from datetime import datetime
 import numpy as np
 import tensorflow as tf
 from smt22.models import build_original_melody, build_original_rhythm
-from smt22.utils import plots, preprocess, valid_input
+from smt22.utils import f1_custom, preprocess, valid_input
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import PolynomialDecay
@@ -82,15 +82,15 @@ if __name__ == "__main__":
     tensorboard_cb = TensorBoard(log_dir=fp_logs, histogram_freq=1)
 
     # lr_schedule = PolynomialDecay(initial_learning_rate=0.01, decay_steps=1_000, end_learning_rate=0.0005)
-    opt_rhythm = Adam(learning_rate=0.1, beta_1=0.9, beta_2=0.999, clipnorm=None)
+    opt_rhythm = Adam(learning_rate=0.05, beta_1=0.9, beta_2=0.999, clipnorm=None)
     opt_melody = Adam(learning_rate=0.05, beta_1=0.9, beta_2=0.999, clipnorm=None)
-    model_rhythm.compile(optimizer=opt_rhythm, loss="categorical_crossentropy", metrics="categorical_accuracy")
-    model_melody.compile(optimizer=opt_melody, loss="categorical_crossentropy", metrics="categorical_accuracy")
+    precision = tf.keras.metrics.Precision(name='precision')
+    recall = tf.keras.metrics.Recall(name='recall')
+    model_rhythm.compile(optimizer=opt_rhythm, loss="categorical_crossentropy", metrics=[f1_custom, precision, recall])
+    model_melody.compile(optimizer=opt_melody, loss="categorical_crossentropy", metrics=[f1_custom, precision, recall])
 
     model_rhythm.summary()
     model_melody.summary()
-
-    # plot_model(model, to_file="./src/main/python/smt22/model_thijs.png", show_shapes=True, dpi=300)
 
     hist_rhythm = model_rhythm.fit(Xs_rhythm, np.array(ys_rhythm), epochs=10, verbose=1, batch_size=32, shuffle=True,
                                    use_multiprocessing=True, workers=6, callbacks=[tensorboard_cb])
@@ -100,18 +100,8 @@ if __name__ == "__main__":
     model_rhythm.save("./src/main/python/smt22/model_original_rhythm.h5")
     model_melody.save("./src/main/python/smt22/model_original_melody.h5")
 
-    # converter = tf.lite.TFLiteConverter.from_keras_model(model)
-    # converter.optimizations = [tf.lite.Optimize.DEFAULT]
-    # tflite_model = converter.convert()
-
-    # # Save the model
-    # with open("./src/main/python/smt22/model.tflite", "wb") as file:
-    #     file.write(tflite_model)
-
     score_rhythm = model_rhythm.evaluate(Xs_rhythm, np.array(ys_rhythm), verbose=1, batch_size=32, use_multiprocessing=True, workers=6)
     score_melody = model_melody.evaluate(Xs, np.array(ys_melody), verbose=1, batch_size=32, use_multiprocessing=True, workers=6)
 
     print(f"Rhythm model loss: {score_rhythm[0]:.4f}; Melody model loss: {score_melody[0]:.4f}")
     print(f"Rhythm model accuracy: {score_rhythm[1]:.4f}; Melody model accuracy: {score_melody[1]:.4f}")
-
-    # plots(hist_model, metric="categorical_accuracy")
