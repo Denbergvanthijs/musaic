@@ -8,7 +8,7 @@ from v9.Data.DataGeneratorsTransformer import CombinedGenerator
 from keras.callbacks import TensorBoard
 from tensorflow import keras
 from collections import Counter
-import testenn
+
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,7 +16,17 @@ import os
 from collections import Counter
 from datetime import datetime
 
-  
+
+class LossHistory(keras.callbacks.Callback):
+
+    def on_train_begin(self, logs={}):
+        self.history = {'rhythm_decoder_loss': [], 'melody_decoder_loss': [], 'rhythm_decoder_accuracy': [], 'melody_decoder_accuracy': []}
+
+    def on_batch_end(self, batch, logs={}):
+        self.history['rhythm_decoder_loss'].append(logs.get('rhythm_decoder_loss'))
+        self.history['melody_decoder_loss'].append(logs.get('melody_decoder_loss'))
+        self.history['rhythm_decoder_accuracy'].append(logs.get('rhythm_decoder_accuracy'))
+        self.history['melody_decoder_accuracy'].append(logs.get('melody_decoder_accuracy'))
 
 
 def rhythm_encoder(input, name):
@@ -31,7 +41,6 @@ def rhythm_encoder(input, name):
     rhythm_attention = Dense(12, activation="relu", name="rhythm_decoder_dense_" + name, kernel_regularizer=l2(0.001))(res)
     rhythm_attention = Dropout(0.1)(rhythm_attention)
     rhythm_attention = keras.layers.LayerNormalization(epsilon=1e-6)(rhythm_attention)
-    print(rhythm_attention.shape, res.shape)
     return rhythm_attention + res
 
 
@@ -46,7 +55,6 @@ def melody_encoder(input, name):
     melody_attention = Dense(12, activation="relu", name="rhythm_decoder_dense_" + name, kernel_regularizer=l2(0.001))(res)
     melody_attention = Dropout(0.2)(melody_attention)
     melody_attention = keras.layers.LayerNormalization(epsilon=1e-6)(melody_attention)
-    print(melody_attention.shape, res.shape)
     return melody_attention + res
 
 
@@ -70,7 +78,6 @@ def lead_rhythm_encoder(input, name):
     lead_rhythm_attention = Dense(12, activation="relu", name="rhythm_decoder_dense_" + name, kernel_regularizer=l2(0.001))(res)
     lead_rhythm_attention = Dropout(0.2)(lead_rhythm_attention)
     lead_rhythm_attention = keras.layers.LayerNormalization(epsilon=1e-6)(lead_rhythm_attention)
-    print(lead_rhythm_attention.shape, res.shape)
     return lead_rhythm_attention + res
 
 
@@ -85,7 +92,6 @@ def lead_melody_encoder(input, name):
     lead_melody_attention = Dense(12, activation="relu", name="rhythm_decoder_dense_" + name, kernel_regularizer=l2(0.001))(res)
     lead_melody_attention = Dropout(0.2)(lead_melody_attention)
     lead_melody_attention = keras.layers.LayerNormalization(epsilon=1e-6)(lead_melody_attention)
-    print(lead_melody_attention.shape, res.shape)
     return lead_melody_attention + res
 
 
@@ -99,7 +105,7 @@ def rhythm_decoder(output_length: int, n_repeat: int, input_layer, name):
     decoder = Dense(128, activation="relu", name="rhythm_decoder_dense_" + name, kernel_regularizer=l2(0.001))(res)
     decoder = Dropout(0.2)(decoder)
     decoder = keras.layers.LayerNormalization(epsilon=1e-6)(decoder)
-    print("aaaaaaaaaa: ", decoder.shape, res.shape)
+
 
     return decoder + res
 
@@ -115,102 +121,33 @@ def melody_decoder(output_length: int, n_repeat: int, input_layer, name):
     decoder = Dense(128, activation="relu", name="rhythm_decoder_dense_" + name, kernel_regularizer=l2(0.001))(res)
     decoder = Dropout(0.2)(decoder)
     decoder = keras.layers.LayerNormalization(epsilon=1e-6)(decoder)
-    print("bbbbbbbb:", decoder.shape, res.shape)
+
 
     return decoder + res
 
 
-def build_model(output_length_rhythm: int, n_repeat_rhythm: int, output_length_melody: int, n_repeat_melody: int):
+def build_model(output_length_rhythm: int, n_repeat_rhythm: int, output_length_melody: int, n_repeat_melody: int,
+                which: int, nr_of_layers: int=1, rhythm_test:bool=True):  
 
-    # rhythm
-    rhythm_input = Input(shape=(16, ), name="rhythm_input")
-    rhythm_embedding = Embedding(input_dim=129, output_dim=12, name="rhythm_embedding")(rhythm_input)
-    positional_encoding = SinePositionEncoding()(rhythm_embedding)
-    rhythm_embedding_pos = rhythm_embedding + positional_encoding
-
-    # melody
-    melody_input = Input(shape=(192,), name="melody_input")
-    melody_embedding = Embedding(input_dim=512, output_dim=12, name="melody_embedding")(melody_input)
-    positional_encoding = SinePositionEncoding()(melody_embedding)
-    melody_embedding_pos = melody_embedding + positional_encoding
-
-    # lead rhythm
-    lead_rhythm_input = Input(shape=(4,), name="lead_rhythm_input")
-    lead_rhythm_embedding = Embedding(input_dim=129, output_dim=12, name="lead_rhythm_embedding")(lead_rhythm_input)
-    positional_encoding = SinePositionEncoding()(lead_rhythm_embedding)
-    lead_rhythm_embedding_pos = lead_rhythm_embedding + positional_encoding
-
-    # lead melody
-    lead_melody_input = Input(shape=(48,), name="lead_melody_input")
-    lead_melody_embedding = Embedding(input_dim=512, output_dim=12, name="lead_melody_embedding")(lead_melody_input)
-    positional_encoding = SinePositionEncoding()(lead_melody_embedding)
-    lead_melody_embedding_pos = lead_melody_embedding + positional_encoding
-
-    layers = 0
-    rhythm_attention = rhythm_encoder(rhythm_embedding_pos, "rhythm_attention")
-    melody_attention = melody_encoder(melody_embedding_pos, "melody_attention")
-    lead_rhythm_attention = lead_rhythm_encoder(lead_rhythm_embedding_pos, "lead_rhythm_attention")
-    lead_melody_attention = lead_melody_encoder(lead_melody_embedding_pos, "lead_melody_attention")
-
-    for i in range(layers):
-        rhythm_attention = rhythm_encoder(rhythm_attention, "rhythm_attention" + str(i))
-        melody_attention = melody_encoder(melody_attention, "melody_attention" + str(i))
-        lead_rhythm_attention = lead_rhythm_encoder(lead_rhythm_attention, "lead_rhythm_attention" + str(i))
-        lead_melody_attention = lead_melody_encoder(lead_melody_attention, "lead_melody_attention" + str(i))
-    meta_input, meta_dense = meta_encoder()
-    encoder_inputs = [rhythm_input, melody_input, meta_input, lead_rhythm_input, lead_melody_input]
-
-    # Concat rhythm and melody inputs
-    concat_context = Concatenate(axis=1, name="concat_context")([rhythm_attention, melody_attention])
-    concat_context = GlobalAveragePooling1D(data_format="channels_first")(concat_context)  # Flatten the output
-    concat_context = Dense(128, activation="relu", name="dense_context", kernel_regularizer=l2(0.001))(concat_context)
-
-    # Concat leads
-    concat_leads = Concatenate(axis=1, name="concat_leads")([lead_rhythm_attention, lead_melody_attention])
-    concat_leads = GlobalAveragePooling1D(data_format="channels_first")(concat_leads)  # Flatten the output
-    concat_leads = Dense(32, activation="relu", name="dense_leads", kernel_regularizer=l2())(concat_leads)
-
-    # Concat all inputs
-    concat = Concatenate(axis=1, name="concat_all")([concat_context, concat_leads, meta_dense])  # Concatenate the outputs of the encoders
-    concat = Dropout(0.2)(concat)
-
-    # Decoder
-
-    r_decoder = Dense(128, activation="relu", name="rhythm_decoder_dense1", kernel_regularizer=l2(0.001))(concat)
-    r_decoder = RepeatVector(n_repeat_rhythm)(r_decoder)  # Repeat the output n_repeat times
-
-    m_decoder = Dense(128, activation="relu", name="melody_decoder_dense1", kernel_regularizer=l2(0.001))(concat)
-    m_decoder = RepeatVector(n_repeat_melody)(m_decoder)  # Repeat the output n_repeat times
-
-    rhythm_dec = rhythm_decoder(output_length_rhythm, n_repeat_rhythm, r_decoder, "rhythm_dec")
-    melody_dec = melody_decoder(output_length_melody, n_repeat_melody, m_decoder, "melo_dec")
-    for i in range(layers):
-        rhythm_dec = rhythm_decoder(output_length_rhythm, n_repeat_rhythm, rhythm_dec, "rhythm_dec" + str(i))
-        melody_dec = melody_decoder(output_length_melody, n_repeat_melody, melody_dec, "melo_dec" + str(i))
-
-    rhythm_dec = Dense(128, activation="relu", name="rhythm_decoder_dense2", kernel_regularizer=l2(0.001))(rhythm_dec)
-    rhythm_dec = TimeDistributed(Dense(output_length_rhythm, activation="relu", kernel_regularizer=l2(0.001)),
-                                name="rhythm_decoder")(rhythm_dec)  # Output layer
-
-    melody_dec = Dense(128, activation="relu", name="melody_decoder_dense2", kernel_regularizer=l2(0.001))(melody_dec)
-    melody_dec = TimeDistributed(Dense(output_length_melody, activation="relu", kernel_regularizer=l2(0.001)),
-                                name="melody_decoder")(melody_dec)  # Output layer
-
-    return Model(inputs=encoder_inputs, outputs=[rhythm_dec, melody_dec])
-
-
-#def build_model(output_length_rhythm: int, n_repeat_rhythm: int,output_length_melody: int, n_repeat_melody: int, which: bool):  # , output_length_melody: int, n_repeat_melody: int):
-
-    if(which):
-        model = keras.Sequential()
-        model.add(Dense(32, activation="relu", input_shape=(267,)))
-        model.add(RepeatVector(n_repeat_rhythm))
-        model.add(Dense(64, activation="relu"))
-        model.add(Dropout(0.2))
-        model.add(TimeDistributed(Dense(output_length_rhythm, activation="relu", name="check1")))
+    if (which == 1):
+        if(rhythm_test):
+            model = keras.Sequential()
+            model.add(Dense(32, activation="relu", input_shape=(267,)))
+            model.add(RepeatVector(n_repeat_rhythm))
+            model.add(Dense(64, activation="relu"))
+            model.add(Dropout(0.2))
+            model.add(TimeDistributed(Dense(output_length_rhythm, activation="relu", name="check1")))
+        else:
+            model = keras.Sequential()
+            model.add(Dense(32, activation="relu", input_shape=(267,)))
+            model.add(RepeatVector(n_repeat_melody))
+            model.add(Dense(64, activation="relu"))
+            model.add(Dropout(0.2))
+            model.add(TimeDistributed(Dense(output_length_melody, activation="relu", name="check1")))
 
         return Model(inputs=model.input, outputs=model.output)
-    else:
+
+    elif (which == 2):
         input_layer = Input(shape=(267,))
         dense_input = Dense(32, activation="relu")(input_layer)
 
@@ -219,12 +156,88 @@ def build_model(output_length_rhythm: int, n_repeat_rhythm: int, output_length_m
         rhythm_model = Dropout(0.2)(rhythm_model)
         rhythm_model = TimeDistributed(Dense(output_length_rhythm, activation="relu"), name="rhythm_decoder")(rhythm_model)
 
-        
         melody_model = RepeatVector(n_repeat_melody)(dense_input)
         melody_model = Dense(64, activation="relu")(melody_model)
+        melody_model = Dropout(0.2)(melody_model)
         melody_model = TimeDistributed(Dense(output_length_melody, activation="relu"), name="melody_decoder")(melody_model)
 
-        return Model(inputs=input_layer, outputs=[rhythm_model,melody_model])
+        return Model(inputs=input_layer, outputs=[rhythm_model, melody_model])
+    else:
+        # rhythm
+        rhythm_input = Input(shape=(16, ), name="rhythm_input")
+        rhythm_embedding = Embedding(input_dim=129, output_dim=12, name="rhythm_embedding")(rhythm_input)
+        positional_encoding = SinePositionEncoding()(rhythm_embedding)
+        rhythm_embedding_pos = rhythm_embedding + positional_encoding
+
+        # melody
+        melody_input = Input(shape=(192,), name="melody_input")
+        melody_embedding = Embedding(input_dim=512, output_dim=12, name="melody_embedding")(melody_input)
+        positional_encoding = SinePositionEncoding()(melody_embedding)
+        melody_embedding_pos = melody_embedding + positional_encoding
+
+        # lead rhythm
+        lead_rhythm_input = Input(shape=(4,), name="lead_rhythm_input")
+        lead_rhythm_embedding = Embedding(input_dim=129, output_dim=12, name="lead_rhythm_embedding")(lead_rhythm_input)
+        positional_encoding = SinePositionEncoding()(lead_rhythm_embedding)
+        lead_rhythm_embedding_pos = lead_rhythm_embedding + positional_encoding
+
+        # lead melody
+        lead_melody_input = Input(shape=(48,), name="lead_melody_input")
+        lead_melody_embedding = Embedding(input_dim=512, output_dim=12, name="lead_melody_embedding")(lead_melody_input)
+        positional_encoding = SinePositionEncoding()(lead_melody_embedding)
+        lead_melody_embedding_pos = lead_melody_embedding + positional_encoding
+
+        rhythm_attention = rhythm_encoder(rhythm_embedding_pos, "rhythm_attention")
+        melody_attention = melody_encoder(melody_embedding_pos, "melody_attention")
+        lead_rhythm_attention = lead_rhythm_encoder(lead_rhythm_embedding_pos, "lead_rhythm_attention")
+        lead_melody_attention = lead_melody_encoder(lead_melody_embedding_pos, "lead_melody_attention")
+
+        for i in range(nr_of_layers):
+            rhythm_attention = rhythm_encoder(rhythm_attention, "rhythm_attention" + str(i))
+            melody_attention = melody_encoder(melody_attention, "melody_attention" + str(i))
+            lead_rhythm_attention = lead_rhythm_encoder(lead_rhythm_attention, "lead_rhythm_attention" + str(i))
+            lead_melody_attention = lead_melody_encoder(lead_melody_attention, "lead_melody_attention" + str(i))
+        meta_input, meta_dense = meta_encoder()
+        encoder_inputs = [rhythm_input, melody_input, meta_input, lead_rhythm_input, lead_melody_input]
+
+        # Concat rhythm and melody inputs
+        concat_context = Concatenate(axis=1, name="concat_context")([rhythm_attention, melody_attention])
+        concat_context = GlobalAveragePooling1D(data_format="channels_first")(concat_context)  # Flatten the output
+        concat_context = Dense(128, activation="relu", name="dense_context", kernel_regularizer=l2(0.001))(concat_context)
+
+        # Concat leads
+        concat_leads = Concatenate(axis=1, name="concat_leads")([lead_rhythm_attention, lead_melody_attention])
+        concat_leads = GlobalAveragePooling1D(data_format="channels_first")(concat_leads)  # Flatten the output
+        concat_leads = Dense(32, activation="relu", name="dense_leads", kernel_regularizer=l2())(concat_leads)
+
+        # Concat all inputs
+        concat = Concatenate(axis=1, name="concat_all")(
+            [concat_context, concat_leads, meta_dense])  # Concatenate the outputs of the encoders
+        concat = Dropout(0.2)(concat)
+
+        # Decoder
+
+        r_decoder = Dense(128, activation="relu", name="rhythm_decoder_dense1", kernel_regularizer=l2(0.001))(concat)
+        r_decoder = RepeatVector(n_repeat_rhythm)(r_decoder)  # Repeat the output n_repeat times
+
+        m_decoder = Dense(128, activation="relu", name="melody_decoder_dense1", kernel_regularizer=l2(0.001))(concat)
+        m_decoder = RepeatVector(n_repeat_melody)(m_decoder)  # Repeat the output n_repeat times
+
+        rhythm_dec = rhythm_decoder(output_length_rhythm, n_repeat_rhythm, r_decoder, "rhythm_dec")
+        melody_dec = melody_decoder(output_length_melody, n_repeat_melody, m_decoder, "melo_dec")
+        for i in range(nr_of_layers):
+            rhythm_dec = rhythm_decoder(output_length_rhythm, n_repeat_rhythm, rhythm_dec, "rhythm_dec" + str(i))
+            melody_dec = melody_decoder(output_length_melody, n_repeat_melody, melody_dec, "melo_dec" + str(i))
+
+        rhythm_dec = Dense(128, activation="relu", name="rhythm_decoder_dense2", kernel_regularizer=l2(0.001))(rhythm_dec)
+        rhythm_dec = TimeDistributed(Dense(output_length_rhythm, activation="relu", kernel_regularizer=l2(0.001)),
+                                     name="rhythm_decoder")(rhythm_dec)  # Output layer
+
+        melody_dec = Dense(128, activation="relu", name="melody_decoder_dense2", kernel_regularizer=l2(0.001))(melody_dec)
+        melody_dec = TimeDistributed(Dense(output_length_melody, activation="relu", kernel_regularizer=l2(0.001)),
+                                     name="melody_decoder")(melody_dec)  # Output layer
+
+        return Model(inputs=encoder_inputs, outputs=[rhythm_dec, melody_dec])
 
 
 def preprocess(X, y=None, process_meta: bool = True):
@@ -263,6 +276,26 @@ def preprocess(X, y=None, process_meta: bool = True):
 
     return X_processed
 
+def plots(history):
+    """Plots the loss and accuracy of both the rhythm and melody models."""
+    fig, axs = plt.subplots(1, 2, figsize=(15, 5))
+
+    axs[0].plot(history.history["rhythm_decoder_loss"], label="Rhythm loss")
+    axs[0].plot(history.history["melody_decoder_loss"], label="Melody loss")
+    #axs[0].plot(history.history["val_rhythm_decoder_loss"], label="Rhythm val loss")
+    #axs[0].plot(history.history["val_melody_decoder_loss"], label="Melody val loss")
+
+    axs[1].plot(history.history["rhythm_decoder_accuracy"], label="Rhythm accuracy")
+    axs[1].plot(history.history["melody_decoder_accuracy"], label="Melody accuracy")
+    #axs[1].plot(history.history["val_rhythm_decoder_accuracy"], label="Rhythm val accuracy")
+    #axs[1].plot(history.history["val_melody_decoder_accuracy"], label="Melody val accuracy")
+
+    axs[0].set_title("Loss")
+    axs[1].set_title("Accuracy")
+    axs[0].legend()
+    axs[1].legend()
+
+    plt.show()
 
 def valid_input(X, y_rhythm, y_melody, process_meta: bool = True) -> bool:
     """Checks if the input is valid."""
@@ -312,8 +345,8 @@ if __name__ == "__main__":
     print(f"Total number of tracks: {sum([k * v for k, v in Counter(num_pieces).items()])}")
 
     data_iter = combined_generator.generate_data(rhythm_context_size=rhythm_context_size,
-                                                melody_context_size=melody_context_size)
-    history = test.LossHistory()
+                                                 melody_context_size=melody_context_size)
+
     cnt = 0
     ys_rhythm, ys_melody = [], []
     X1, X2, X3, X4, X5 = [], [], [], [], []
@@ -333,7 +366,7 @@ if __name__ == "__main__":
             X4.append(lead_rhythm[row])
             X5.append(lead_melody[row])
             tempx.append(np.concatenate((context_rhythms[row], context_melodies[row],
-                        meta[row], lead_rhythm[row], lead_melody[row]), axis=0))
+                                         meta[row], lead_rhythm[row], lead_melody[row]), axis=0))
 
             ys_rhythm.append(y_rhythm[row])
             ys_melody.append(y_melody[row])
@@ -341,11 +374,7 @@ if __name__ == "__main__":
         # if c == 4:  # Early stop for testing
         #     break
 
-    Xs = [np.array(X1), np.array(X2), np.array(X3), np.array(X4), np.array(X5)]
-    ys = [np.array(ys_rhythm), np.array(ys_melody)]
 
-    #Xs = np.array(tempx)
-    #ys = np.array(ys_rhythm)
 # print(f"Xs: {len(Xs)} tracks; {Xs[0].shape} {Xs[1].shape} {Xs[2].shape} {Xs[3].shape} {Xs[4].shape}")
 # print(f"Max values: {np.max(Xs[0])} {np.max(Xs[1])} {np.max(Xs[2])} {np.max(Xs[3])} {np.max(Xs[4])}")
 # print(f"Min values: {np.min(Xs[0])} {np.min(Xs[1])} {np.min(Xs[2])} {np.min(Xs[3])} {np.min(Xs[4])}")
@@ -354,64 +383,49 @@ if __name__ == "__main__":
 # print(f"Min values: {np.min(ys[0])} {np.min(ys[1])}")
 
     print(f"Skipped {cnt} ({cnt/sum(num_pieces)*100:.0f}%) tracks because of wrong shape")
+    
+    
+    kiesmodel=2 #1,2 of 3
+    rhythm_test=True #true or false
 
-    model = build_model(4, 127, 48,25)  # TODO: Train encoder only once, train two seperate decoders
+    Xs = [np.array(X1), np.array(X2), np.array(X3), np.array(X4), np.array(X5)]
+    ys = [np.array(ys_rhythm), np.array(ys_melody)]
+
+    if(kiesmodel==1): #ez sequential model
+        #makkelijke sequential model, als rhythm test false is dan test je de melody
+        if(rhythm_test):
+            Xs = np.array(tempx) 
+            ys = np.array(ys_rhythm)
+        else:
+            Xs = np.array(tempx) 
+            ys = np.array(ys_rhythm)
+    elif(kiesmodel==2): #ez functional model nu met beide outputs tegelijk
+        Xs = np.array(tempx) 
+        ys = [np.array(ys_rhythm), np.array(ys_melody)]
+    else: #transformer model ig
+        Xs = [np.array(X1), np.array(X2), np.array(X3), np.array(X4), np.array(X5)]
+        ys = [np.array(ys_rhythm), np.array(ys_melody)]
+
+    model = build_model(4, 127, 48, 25, kiesmodel)     # TODO: Train encoder only once, train two seperate decoders
+    #^^
+    #1e 4 variabelen zijn de dimensies, 5e vul je kiesmodel in gaat over welk model je kiest 1=seqential, 2=functional, 3=transformer
+    #6e is het aantal layers dat je het transformerblock meegeeft, hoe meer hoe langer het duurt ofc (default=1). De laatste variabele 
+    #gaat over kiesmodel=1 als rhythm of melodie wilt trainen(default=True).
 
     fp_logs = os.path.join("./src/main/python/smt22/logs", datetime.now().strftime("%Y%m%d_%H%M%S"))
 
     tensorboard_cb = TensorBoard(log_dir=fp_logs, histogram_freq=1)
 
     opt = keras.optimizers.Adam(learning_rate=0.005, beta_1=0.95, beta_2=0.99, clipnorm=1.0)
-    model.compile(loss="binary_crossentropy", optimizer=opt, metrics=["accuracy"])
+    model.compile(optimizer=opt, loss="binary_crossentropy", metrics=["accuracy"])#, loss_weights=[4, 48])
     model.summary()
-    # model.compile(optimizer=opt, loss="categorical_crossentropy", metrics=["accuracy"], loss_weights=[4, 48])
+    #keras.utils.plot_model(model, to_file="./src/main/python/smt22/model_rowan.png", show_shapes=True, dpi=300)
+    history = LossHistory()
+    hist_model = model.fit(Xs, ys, epochs=1, batch_size=64, validation_split=0.1,
+                         shuffle=True, use_multiprocessing=True, callbacks=[history])
 
-    # model.summary()
-    # keras.utils.plot_model(model, to_file="./src/main/python/smt22/model_rowan.png", show_shapes=True, dpi=300)
-    # hist_model = model.fit(Xs, ys, epochs=20, verbose=1, batch_size=64, validation_split=0.1,
-    #                      shuffle=True, use_multiprocessing=True, workers=6, callbacks=[tensorboard_cb])
-
-
-    history = test.LossHistory()
-    check = model.fit(Xs, ys, batch_size=64, use_multiprocessing=True, epochs=1, validation_split=0.1, shuffle=True,
-            workers=6, callbacks=[history])
-    fig, axs = plt.subplots(1, 2, figsize=(15, 5))
-
-    axs[0].plot(history.history["rhythm_decoder_loss"], label="Rhythm loss")
-    axs[0].plot(history.history["melody_decoder_loss"], label="Melody loss")
-    #axs[0].plot(history.history["val_rhythm_decoder_loss"], label="Rhythm val loss")
-    #axs[0].plot(history.history["val_melody_decoder_loss"], label="Melody val loss")
-
-    axs[1].plot(history.history["rhythm_decoder_accuracy"], label="Rhythm accuracy")
-    axs[1].plot(history.history["melody_decoder_accuracy"], label="Melody accuracy")
-    #axs[1].plot(history.history["val_rhythm_decoder_accuracy"], label="Rhythm val accuracy")
-    #axs[1].plot(history.history["val_melody_decoder_accuracy"], label="Melody val accuracy")
-
-    axs[0].set_title("Loss")
-    axs[1].set_title("Accuracy")
-    axs[0].legend()
-    axs[1].legend()
-
-    plt.show()
-    plt.show()
-
-    print(len(check.history))
-    
-    #plt.plot(check.history['acc'])
-    #plt.plot(check.history['val_acc'])
-    #plt.title('model accuracy')
-    #plt.ylabel('accuracy')
-    #plt.xlabel('epoch')
-    #plt.legend(['train', 'validation'], loc='upper left')
-    #plt.show()
-    # "Loss"
-    #plt.plot(check.history['loss'])
-    #plt.plot(check.history['val_loss'])
-    #plt.title('model loss')
-    #plt.ylabel('loss')
-    #plt.xlabel('epoch')
-    #plt.legend(['train', 'validation'], loc='upper left')
-    #plt.show()
+    plots(history)
+  
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
     tflite_model_rowan = converter.convert()
@@ -424,23 +438,4 @@ if __name__ == "__main__":
     print(f"Rhythm model loss: {score[1]:.4f}; Melody model loss: {score[2]:.4f}")
     print(f"Rhythm model accuracy: {score[3]:.4f}; Melody model accuracy: {score[4]:.4f}")
 
-#def plots(history):
-    """Plots the loss and accuracy of both the rhythm and melody models."""
-    fig, axs = plt.subplots(1, 2, figsize=(15, 5))
 
-    axs[0].plot(history.history["rhythm_decoder_loss"], label="Rhythm loss")
-    axs[0].plot(history.history["melody_decoder_loss"], label="Melody loss")
-    axs[0].plot(history.history["val_rhythm_decoder_loss"], label="Rhythm val loss")
-    axs[0].plot(history.history["val_melody_decoder_loss"], label="Melody val loss")
-
-    axs[1].plot(history.history["rhythm_decoder_accuracy"], label="Rhythm accuracy")
-    axs[1].plot(history.history["melody_decoder_accuracy"], label="Melody accuracy")
-    axs[1].plot(history.history["val_rhythm_decoder_accuracy"], label="Rhythm val accuracy")
-    axs[1].plot(history.history["val_melody_decoder_accuracy"], label="Melody val accuracy")
-
-    axs[0].set_title("Loss")
-    axs[1].set_title("Accuracy")
-    axs[0].legend()
-    axs[1].legend()
-
-    plt.show()
