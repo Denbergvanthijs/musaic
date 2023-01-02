@@ -18,8 +18,7 @@ from core import DEFAULT_AI_PARAMS, DEFAULT_META_DATA, DEFAULT_SECTION_PARAMS
 
 """
 
-N = 10
-V = 20
+N = 10  # Number of songs to generate per variety
 ROOT_PATH = "./src/main/python/smt22/generated_euroai/"
 
 PARAMETER_RANGES = {"length": [2, 4, 8],  # See core.py for explanation
@@ -60,7 +59,10 @@ if __name__ == "__main__":
     print(list(PARAMETER_RANGES.keys()))
 
     counter = 1
-    for loop_num, loop_alt_len, sample_mode, chord_mode, ip in product(*PARAMETER_RANGES.values()):
+    parameter_product = list(product(*PARAMETER_RANGES.values()))
+    total = len(parameter_product) * N  # Total number of songs to generate
+
+    for loop_num, loop_alt_len, sample_mode, chord_mode, ip in parameter_product:
         params = {**DEFAULT_SECTION_PARAMS, **DEFAULT_AI_PARAMS}
         params["loop_num"] = 8 // loop_num
         params["length"] = loop_num
@@ -70,24 +72,19 @@ if __name__ == "__main__":
         params["octave"] = 4
         # params["lead"] = bass.id_
 
-        # Make new Engine for each iteration of N to avoid memory leaks
-        # If N is too large, the program will become unresponsive
-        app = Engine()
-        app.start()
-        time.sleep(10)
-
-        print(" == Creating instruments...")
-        # bass = app.addInstrument(name="bass")
-        lead = app.addInstrument(name="chords")
-
-        print(" == Adding sections...")
-        # _, bass_sec = bass.newSection(chord_mode=1, octave=2, transpose_octave=-1, length=2, loop_num=8)
-        _, lead_sec = lead.newSection()
-
-        lead_sec.changeParameter(**params)
-
         for _ in range(N):
             now = time.time()
+
+            # Make new Engine for each iteration of N to avoid memory leaks
+            app = Engine()
+            app.start()
+            time.sleep(10)
+            # bass = app.addInstrument(name="bass")
+            lead = app.addInstrument(name="chords")
+            # _, bass_sec = bass.newSection(chord_mode=1, octave=2, transpose_octave=-1, length=2, loop_num=8)
+            _, lead_sec = lead.newSection()
+
+            lead_sec.changeParameter(**params)
 
             # bass_md = new_meta_data(DEFAULT_META_DATA, META_DATA_RANGES)
             # bass_sec.changeParameter(meta_data=bass_md)
@@ -108,7 +105,8 @@ if __name__ == "__main__":
             # app.exportMidiFile(os.path.abspath(os.path.join(ROOT_PATH, "bass/", "bass_{counter:04}.mid")), track_list=[bass.id_])
             # app.exportMidiFile(os.path.abspath(os.path.join(ROOT_PATH, "chord/", "chord_{counter:04}.mid")), track_list=[lead.id_])
 
-            print(f"{counter} songs generated. Last song took {time.time() - now:.2f} seconds")
+            print(f"\033[92m{counter} of {total} songs generated. Last song took {time.time() - now:.2f} seconds\033[0m")
+            print(f"\033[92mExpected end in {(time.time() - now) * (total - counter) / 60:.0f} minutes\033[0m")
             counter += 1
 
     print("DONE")
