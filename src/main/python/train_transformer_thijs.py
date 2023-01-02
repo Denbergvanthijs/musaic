@@ -98,8 +98,8 @@ if __name__ == "__main__":
     model.summary()
     plot_model(model, to_file="./src/main/python/smt22/model_thijs.png", show_shapes=True, dpi=300)
 
-    hist_model = model.fit(Xs, ys, epochs=10, verbose=1, batch_size=32, validation_split=0.15,
-                           shuffle=True, use_multiprocessing=True, workers=6, callbacks=[tensorboard_cb])
+    hist_model = model.fit(Xs, ys, epochs=1, verbose=1, batch_size=32, validation_split=0.15,
+                           shuffle=True, use_multiprocessing=True, callbacks=[tensorboard_cb])
 
     # Plot confusion matrix
     y_pred = model.predict(Xs)
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     with open("./src/main/python/smt22/model.tflite", 'wb') as file:
         file.write(tflite_model)
 
-    score = model.evaluate(Xs, ys, verbose=1, batch_size=32, use_multiprocessing=True, workers=6)
+    score = model.evaluate(Xs, ys, verbose=1, batch_size=32, use_multiprocessing=True)
     print(f"Rhythm model loss: {score[1]:.4f}; Melody model loss: {score[2]:.4f}")
     print(f"Rhythm model accuracy: {score[3]:.4f}; Melody model accuracy: {score[4]:.4f}")
 
