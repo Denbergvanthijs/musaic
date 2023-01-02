@@ -2,13 +2,15 @@ from keras.regularizers import l2
 from keras.models import Model
 from keras.layers import (Concatenate, Dense, Dropout, Embedding,
                           GlobalAveragePooling1D, Input,
-                          RepeatVector, TimeDistributed)
+                          RepeatVector, TimeDistributed, LSTM, Reshape)
 from keras_nlp.layers import SinePositionEncoding
 from v9.Data.DataGeneratorsTransformer import CombinedGenerator
 from keras.callbacks import TensorBoard
 from tensorflow import keras
 from collections import Counter
-
+from smt22.utils import f1_custom, preprocess, valid_input
+from tensorflow.keras.models import Model
+from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix, f1_score
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
@@ -106,7 +108,6 @@ def rhythm_decoder(output_length: int, n_repeat: int, input_layer, name):
     decoder = Dropout(0.2)(decoder)
     decoder = keras.layers.LayerNormalization(epsilon=1e-6)(decoder)
 
-
     return decoder + res
 
 
@@ -122,15 +123,14 @@ def melody_decoder(output_length: int, n_repeat: int, input_layer, name):
     decoder = Dropout(0.2)(decoder)
     decoder = keras.layers.LayerNormalization(epsilon=1e-6)(decoder)
 
-
     return decoder + res
 
 
 def build_model(output_length_rhythm: int, n_repeat_rhythm: int, output_length_melody: int, n_repeat_melody: int,
-                which: int, nr_of_layers: int=1, rhythm_test:bool=True):  
+                which: int, nr_of_layers: int = 1, rhythm_test: bool = True):
 
     if (which == 1):
-        if(rhythm_test):
+        if (rhythm_test):
             model = keras.Sequential()
             model.add(Dense(32, activation="relu", input_shape=(267,)))
             model.add(RepeatVector(n_repeat_rhythm))
@@ -148,20 +148,39 @@ def build_model(output_length_rhythm: int, n_repeat_rhythm: int, output_length_m
         return Model(inputs=model.input, outputs=model.output)
 
     elif (which == 2):
-        input_layer = Input(shape=(267,))
+        input_layer = Input(shape=(267,1))
         dense_input = Dense(32, activation="relu")(input_layer)
+        dense_input = LSTM(20)(dense_input)
+
 
         rhythm_model = RepeatVector(n_repeat_rhythm)(dense_input)
-        rhythm_model = Dense(512, activation="relu")(rhythm_model)
+        #rhythm_model = LSTM(20,return_sequences=True)(rhythm_model)
+        rhythm_model = Dense(64, activation="relu")(rhythm_model)
         rhythm_model = Dropout(0.2)(rhythm_model)
-        rhythm_model = TimeDistributed(Dense(output_length_rhythm, activation="relu"), name="rhythm_decoder")(rhythm_model)
+        rhythm_model = TimeDistributed(Dense(output_length_rhythm, activation="sigmoid"), name="rhythm_decoder")(rhythm_model)
 
         melody_model = RepeatVector(n_repeat_melody)(dense_input)
-        melody_model = Dense(64, activation="relu")(melody_model)
+       # melody_model = LSTM(20,return_sequences=True)(melody_model)
+        melody_model = Dense(128, activation="relu")(melody_model)
         melody_model = Dropout(0.2)(melody_model)
-        melody_model = TimeDistributed(Dense(output_length_melody, activation="relu"), name="melody_decoder")(melody_model)
+        melody_model = TimeDistributed(Dense(output_length_melody, activation="sigmoid"), name="melody_decoder")(melody_model)
 
-        return Model(inputs=input_layer, outputs=[rhythm_model, melody_model])
+        return Model(inputs=input_layer, outputs=rhythm_model), Model(inputs=input_layer, outputs=melody_model)
+    elif(which == 4):
+        input_layer = Input(shape=(267,1))
+
+        Lstm_input = LSTM(150)(input_layer)
+        
+        rhythm_model = RepeatVector(n_repeat_melody)(Lstm_input)
+        Lstm_input = LSTM(150,return_sequences=True)(rhythm_model)
+        rhythm_model = TimeDistributed(Dense(output_length_rhythm, activation="sigmoid"), name="rhythm_decoder")(Lstm_input)
+
+        melody_model = RepeatVector(n_repeat_melody)(Lstm_input)
+        Lstm_input = LSTM(150,return_sequences=True)(melody_model)
+        melody_model = TimeDistributed(Dense(output_length_melody, activation="sigmoid"), name="rhythm_decoder")(melody_model)
+        return Model(inputs=input_layer, outputs=rhythm_model), Model(inputs=input_layer, outputs=melody_model)
+       
+
     else:
         # rhythm
         rhythm_input = Input(shape=(16, ), name="rhythm_input")
@@ -230,14 +249,14 @@ def build_model(output_length_rhythm: int, n_repeat_rhythm: int, output_length_m
             melody_dec = melody_decoder(output_length_melody, n_repeat_melody, melody_dec, "melo_dec" + str(i))
 
         rhythm_dec = Dense(128, activation="relu", name="rhythm_decoder_dense2", kernel_regularizer=l2(0.001))(rhythm_dec)
-        rhythm_dec = TimeDistributed(Dense(output_length_rhythm, activation="relu", kernel_regularizer=l2(0.001)),
+        rhythm_dec = TimeDistributed(Dense(output_length_rhythm, activation="softmax", kernel_regularizer=l2(0.001)),
                                      name="rhythm_decoder")(rhythm_dec)  # Output layer
 
         melody_dec = Dense(128, activation="relu", name="melody_decoder_dense2", kernel_regularizer=l2(0.001))(melody_dec)
-        melody_dec = TimeDistributed(Dense(output_length_melody, activation="relu", kernel_regularizer=l2(0.001)),
+        melody_dec = TimeDistributed(Dense(output_length_melody, activation="softmax", kernel_regularizer=l2(0.001)),
                                      name="melody_decoder")(melody_dec)  # Output layer
 
-        return Model(inputs=encoder_inputs, outputs=[rhythm_dec, melody_dec])
+        return Model(inputs=encoder_inputs, outputs=rhythm_dec), Model(inputs=encoder_inputs, outputs=melody_dec)
 
 
 def preprocess(X, y=None, process_meta: bool = True):
@@ -276,19 +295,20 @@ def preprocess(X, y=None, process_meta: bool = True):
 
     return X_processed
 
+
 def plots(history):
     """Plots the loss and accuracy of both the rhythm and melody models."""
     fig, axs = plt.subplots(1, 2, figsize=(15, 5))
 
     axs[0].plot(history.history["rhythm_decoder_loss"], label="Rhythm loss")
     axs[0].plot(history.history["melody_decoder_loss"], label="Melody loss")
-    #axs[0].plot(history.history["val_rhythm_decoder_loss"], label="Rhythm val loss")
-    #axs[0].plot(history.history["val_melody_decoder_loss"], label="Melody val loss")
+    # axs[0].plot(history.history["val_rhythm_decoder_loss"], label="Rhythm val loss")
+    # axs[0].plot(history.history["val_melody_decoder_loss"], label="Melody val loss")
 
     axs[1].plot(history.history["rhythm_decoder_accuracy"], label="Rhythm accuracy")
     axs[1].plot(history.history["melody_decoder_accuracy"], label="Melody accuracy")
-    #axs[1].plot(history.history["val_rhythm_decoder_accuracy"], label="Rhythm val accuracy")
-    #axs[1].plot(history.history["val_melody_decoder_accuracy"], label="Melody val accuracy")
+    # axs[1].plot(history.history["val_rhythm_decoder_accuracy"], label="Rhythm val accuracy")
+    # axs[1].plot(history.history["val_melody_decoder_accuracy"], label="Melody val accuracy")
 
     axs[0].set_title("Loss")
     axs[1].set_title("Accuracy")
@@ -296,6 +316,7 @@ def plots(history):
     axs[1].legend()
 
     plt.show()
+
 
 def valid_input(X, y_rhythm, y_melody, process_meta: bool = True) -> bool:
     """Checks if the input is valid."""
@@ -375,7 +396,7 @@ if __name__ == "__main__":
         #     break
 
 
-# print(f"Xs: {len(Xs)} tracks; {Xs[0].shape} {Xs[1].shape} {Xs[2].shape} {Xs[3].shape} {Xs[4].shape}")
+
 # print(f"Max values: {np.max(Xs[0])} {np.max(Xs[1])} {np.max(Xs[2])} {np.max(Xs[3])} {np.max(Xs[4])}")
 # print(f"Min values: {np.min(Xs[0])} {np.min(Xs[1])} {np.min(Xs[2])} {np.min(Xs[3])} {np.min(Xs[4])}")
 # print(f"ys_rhythm: {ys[0].shape}; ys_melody: {ys[1].shape}")
@@ -383,49 +404,81 @@ if __name__ == "__main__":
 # print(f"Min values: {np.min(ys[0])} {np.min(ys[1])}")
 
     print(f"Skipped {cnt} ({cnt/sum(num_pieces)*100:.0f}%) tracks because of wrong shape")
-    
-    
-    kiesmodel=2 #1,2 of 3
-    rhythm_test=True #true or false
+
+    kiesmodel =3  # 1,2 of 3
+    rhythm_test = True  # true or false
 
     Xs = [np.array(X1), np.array(X2), np.array(X3), np.array(X4), np.array(X5)]
     ys = [np.array(ys_rhythm), np.array(ys_melody)]
 
-    if(kiesmodel==1): #ez sequential model
-        #makkelijke sequential model, als rhythm test false is dan test je de melody
-        if(rhythm_test):
-            Xs = np.array(tempx) 
+    print(f"Xs: {len(Xs)} tracks; {Xs[0].shape} {Xs[1].shape} {Xs[2].shape} {Xs[3].shape} {Xs[4].shape}")
+
+    if (kiesmodel == 1):  # ez sequential model
+        # makkelijke sequential model, als rhythm test false is dan test je de melody
+        if (rhythm_test):
+            Xs = np.array(tempx)
             ys = np.array(ys_rhythm)
         else:
-            Xs = np.array(tempx) 
+            Xs = np.array(tempx)
             ys = np.array(ys_rhythm)
-    elif(kiesmodel==2): #ez functional model nu met beide outputs tegelijk
-        Xs = np.array(tempx) 
+    elif (kiesmodel == 2 or kiesmodel == 4):  # ez functional model nu met beide outputs tegelijk
+        Xs = np.array(tempx)
         ys = [np.array(ys_rhythm), np.array(ys_melody)]
-    else: #transformer model ig
+    else:  # transformer model ig
         Xs = [np.array(X1), np.array(X2), np.array(X3), np.array(X4), np.array(X5)]
         ys = [np.array(ys_rhythm), np.array(ys_melody)]
 
-    model = build_model(4, 127, 48, 25, kiesmodel)     # TODO: Train encoder only once, train two seperate decoders
-    #^^
-    #1e 4 variabelen zijn de dimensies, 5e vul je kiesmodel in gaat over welk model je kiest 1=seqential, 2=functional, 3=transformer
-    #6e is het aantal layers dat je het transformerblock meegeeft, hoe meer hoe langer het duurt ofc (default=1). De laatste variabele 
-    #gaat over kiesmodel=1 als rhythm of melodie wilt trainen(default=True).
+    # TODO: Train encoder only once, train two seperate decoders
+    r_model, m_model = build_model(4, 127, 48, 25, kiesmodel, nr_of_layers=0)
+    # ^^
+    # 1e 4 variabelen zijn de dimensies, 5e vul je kiesmodel in gaat over welk model je kiest 1=seqential, 2=functional, 3=transformer
+    # 6e is het aantal layers dat je het transformerblock meegeeft, hoe meer hoe langer het duurt ofc (default=1). De laatste variabele
+    # gaat over kiesmodel=1 als rhythm of melodie wilt trainen(default=True).
 
     fp_logs = os.path.join("./src/main/python/smt22/logs", datetime.now().strftime("%Y%m%d_%H%M%S"))
 
     tensorboard_cb = TensorBoard(log_dir=fp_logs, histogram_freq=1)
 
-    opt = keras.optimizers.Adam(learning_rate=0.005, beta_1=0.95, beta_2=0.99, clipnorm=1.0)
-    model.compile(optimizer=opt, loss="binary_crossentropy", metrics=["accuracy"])#, loss_weights=[4, 48])
-    model.summary()
-    #keras.utils.plot_model(model, to_file="./src/main/python/smt22/model_rowan.png", show_shapes=True, dpi=300)
-    history = LossHistory()
-    hist_model = model.fit(Xs, ys, epochs=1, batch_size=64, validation_split=0.1,
-                         shuffle=True, use_multiprocessing=True, callbacks=[history])
+    opt = keras.optimizers.Adam(learning_rate=0.05, beta_1=0.9, beta_2=0.999, clipnorm=1.0)
+    precision = tf.keras.metrics.Precision(name='precision')
+    recall = tf.keras.metrics.Recall(name='recall')
+    r_model.compile(optimizer=opt, loss="categorical_crossentropy", metrics=[f1_custom, precision, recall])# , loss_weights=[4, 48])
+    r_model.summary()
+    m_model.compile(optimizer=opt, loss="categorical_crossentropy", metrics=[f1_custom, precision, recall])#, loss_weights=[4, 48])
+    m_model.summary()
 
-    plots(history)
-  
+    # keras.utils.plot_model(model, to_file="./src/main/python/smt22/model_rowan.png", show_shapes=True, dpi=300)
+    history = LossHistory()
+    hist_model_r = r_model.fit(Xs, np.array(ys_rhythm), epochs=1, batch_size=128, validation_split=0.3,
+                               shuffle=True, use_multiprocessing=True, callbacks=[history])
+    hist_model_m = m_model.fit(Xs, np.array(ys_melody), epochs=1, batch_size=128, validation_split=0.3,
+                               shuffle=True, use_multiprocessing=True, callbacks=[history])
+    #plots(history)
+
+    prediction_r = r_model.predict(Xs)
+    y_pred_rhythm = np.array(prediction_r)
+    y_pred_rhythm = (y_pred_rhythm > 0.5).astype(int).flatten()
+
+    prediction_m = m_model.predict(Xs)
+    y_pred_melody = np.array(prediction_m)
+    y_pred_melody = (y_pred_melody > 0.5).astype(int).flatten()
+
+    # Calculate F1 score
+    print(f"F1 Rhythm: {f1_score(np.array(ys_rhythm).flatten(), y_pred_rhythm, average='macro')}")
+    print(f"F1 Melody: {f1_score(np.array(ys_melody).flatten(), y_pred_melody, average='macro')}")
+
+    cm_rhythm = confusion_matrix(np.array(ys_rhythm).flatten(), y_pred_rhythm)
+    print(cm_rhythm)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm_rhythm)
+    disp.plot()
+    plt.show()
+
+    cm_melody = confusion_matrix(np.array(ys_melody).flatten(), y_pred_melody)
+    print(cm_melody)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm_melody)
+    disp.plot()
+    plt.show()
+
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
     tflite_model_rowan = converter.convert()
@@ -437,5 +490,3 @@ if __name__ == "__main__":
 
     print(f"Rhythm model loss: {score[1]:.4f}; Melody model loss: {score[2]:.4f}")
     print(f"Rhythm model accuracy: {score[3]:.4f}; Melody model accuracy: {score[4]:.4f}")
-
-
