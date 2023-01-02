@@ -20,7 +20,7 @@ from core import DEFAULT_AI_PARAMS, DEFAULT_META_DATA, DEFAULT_SECTION_PARAMS
 
 N = 10
 V = 20
-ROOT_PATH = "./src/main/python/smt22/generated/"
+ROOT_PATH = "./src/main/python/smt22/generated_euroai/"
 
 PARAMETER_RANGES = {"length": [2, 4, 8],  # See core.py for explanation
                     "loop_alt_len": [0, 1],
@@ -40,32 +40,26 @@ META_DATA_RANGES = {"span": (1, 30),  # See core.py for explanation
                     "rDens": (0, 8),
                     "pos": (0, 1)}
 
+
+def new_meta_data(default_meta_data: dict = DEFAULT_META_DATA, meta_data_ranges: dict = META_DATA_RANGES) -> dict:
+    lead_meta_data = {**default_meta_data}
+
+    for k, (lowerbound, upperbound) in meta_data_ranges.items():
+        lead_meta_data[k] = random.uniform(lowerbound, upperbound)
+
+    return lead_meta_data
+
+
 if __name__ == "__main__":
     print("STARTING")
 
     if not os.path.exists(ROOT_PATH):
         os.makedirs(ROOT_PATH)
 
-    app = Engine()
-    app.start()
-
-    # while not app.networkEngine.isLoaded():
-    #     time.sleep(0.01)
-
-    time.sleep(10)
-
-    print(" == Creating instruments...")
-    # bass = app.addInstrument(name="bass")
-    lead = app.addInstrument(name="chords")
-
-    print(" == Adding sections...")
-    # _, bass_sec = bass.newSection(chord_mode=1, octave=2, transpose_octave=-1, length=2, loop_num=8)
-    _, lead_sec = lead.newSection()
-
     print(" == Entering space...")
     print(list(PARAMETER_RANGES.keys()))
 
-    counter = 0
+    counter = 1
     for loop_num, loop_alt_len, sample_mode, chord_mode, ip in product(*PARAMETER_RANGES.values()):
         params = {**DEFAULT_SECTION_PARAMS, **DEFAULT_AI_PARAMS}
         params["loop_num"] = 8 // loop_num
@@ -76,17 +70,29 @@ if __name__ == "__main__":
         params["octave"] = 4
         # params["lead"] = bass.id_
 
+        # Make new Engine for each iteration of N to avoid memory leaks
+        # If N is too large, the program will become unresponsive
+        app = Engine()
+        app.start()
+        time.sleep(10)
+
+        print(" == Creating instruments...")
+        # bass = app.addInstrument(name="bass")
+        lead = app.addInstrument(name="chords")
+
+        print(" == Adding sections...")
+        # _, bass_sec = bass.newSection(chord_mode=1, octave=2, transpose_octave=-1, length=2, loop_num=8)
+        _, lead_sec = lead.newSection()
+
         lead_sec.changeParameter(**params)
 
         for _ in range(N):
-            # bass_md = {**DEFAULT_META_DATA}
-            # for k, (lowerbound, upperbound) in META_DATA_RANGES.items():
-            #     bass_md[k] = random.uniform(lowerbound, upperbound)
+            now = time.time()
+
+            # bass_md = new_meta_data(DEFAULT_META_DATA, META_DATA_RANGES)
             # bass_sec.changeParameter(meta_data=bass_md)
 
-            lead_meta_data = {**DEFAULT_META_DATA}
-            for k, (lowerbound, upperbound) in META_DATA_RANGES.items():
-                lead_meta_data[k] = random.uniform(lowerbound, upperbound)
+            lead_meta_data = new_meta_data(DEFAULT_META_DATA, META_DATA_RANGES)
             lead_sec.changeParameter(meta_data=lead_meta_data)
 
             # Regenerate...
@@ -102,7 +108,7 @@ if __name__ == "__main__":
             # app.exportMidiFile(os.path.abspath(os.path.join(ROOT_PATH, "bass/", "bass_{counter:04}.mid")), track_list=[bass.id_])
             # app.exportMidiFile(os.path.abspath(os.path.join(ROOT_PATH, "chord/", "chord_{counter:04}.mid")), track_list=[lead.id_])
 
-            print(f"{counter} songs generated")
+            print(f"{counter} songs generated. Last song took {time.time() - now:.2f} seconds")
             counter += 1
 
     print("DONE")
