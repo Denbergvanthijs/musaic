@@ -82,9 +82,9 @@ if __name__ == "__main__":
 
     # Shape is (batch_size, n_repeats, output_shape)
     if USE_SIMPLE_MODEL:
-        model = build_simple_model(output_length_rhythm=4, n_repeat_rhythm=127, output_length_melody=48, n_repeat_melody=25)
+        model = build_simple_model(n_classes_rhythm=127, n_notes_rhythm=4, n_classes_melody=25, n_notes_melody=48)
     else:
-        model = build_model(output_length_rhythm=4, n_repeat_rhythm=127, output_length_melody=48, n_repeat_melody=25)
+        model = build_model(n_classes_rhythm=127, n_notes_rhythm=4, n_classes_melody=25, n_notes_melody=48)
 
     fp_logs = os.path.join("./src/main/python/smt22/logs", datetime.now().strftime("%Y%m%d_%H%M%S"))
     tensorboard_cb = TensorBoard(log_dir=fp_logs, histogram_freq=1)
@@ -98,7 +98,7 @@ if __name__ == "__main__":
     model.summary()
     plot_model(model, to_file="./src/main/python/smt22/model_thijs.png", show_shapes=True, dpi=300)
 
-    hist_model = model.fit(Xs, ys, epochs=1, verbose=1, batch_size=32, validation_split=0.15,
+    hist_model = model.fit(Xs, ys, epochs=10, verbose=1, batch_size=32, validation_split=0.15,
                            shuffle=True, use_multiprocessing=True, callbacks=[tensorboard_cb])
 
     # Plot confusion matrix

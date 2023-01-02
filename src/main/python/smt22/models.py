@@ -79,37 +79,37 @@ def lead_melody_encoder():
     return lead_melody_input, lead_melody_attention
 
 
-def rhythm_decoder(output_length: int, n_repeat: int, input_layer):
+def rhythm_decoder(n_classes: int, n_notes: int, input_layer):
     """Rhythm decoder with MultiHeadAttention layer. Used in build_model()."""
     decoder = Dense(128, activation="relu", name="rhythm_decoder_dense1", kernel_regularizer=l2(0.00001))(input_layer)
-    decoder = RepeatVector(n_repeat)(decoder)  # Repeat the output n_repeat times
+    decoder = RepeatVector(n_notes)(decoder)  # Repeat the output n_repeat times
 
     decoder = MultiHeadAttention(num_heads=4, key_dim=28, name="rhythm_decoder_attention")(decoder, decoder)
     decoder = BatchNormalization()(decoder)
 
     decoder = Dense(128, activation="relu", name="rhythm_decoder_dense2", kernel_regularizer=l2(0.00001))(decoder)
-    decoder = TimeDistributed(Dense(output_length, activation="softmax", kernel_regularizer=l2(0.00001)),
+    decoder = TimeDistributed(Dense(n_classes, activation="softmax", kernel_regularizer=l2(0.00001)),
                               name="rhythm_decoder")(decoder)  # Output layer
 
     return decoder
 
 
-def melody_decoder(output_length: int, n_repeat: int, input_layer):
+def melody_decoder(n_classes: int, n_notes: int, input_layer):
     """Melody decoder with MultiHeadAttention layer. Used in build_model()."""
     decoder = Dense(128, activation="relu", name="melody_decoder_dense1", kernel_regularizer=l2(0.00001))(input_layer)
-    decoder = RepeatVector(n_repeat)(decoder)  # Repeat the output n_repeat times
+    decoder = RepeatVector(n_notes)(decoder)  # Repeat the output n_repeat times
 
     decoder = MultiHeadAttention(num_heads=8, key_dim=32, name="melody_decoder_attention")(decoder, decoder)
     decoder = BatchNormalization()(decoder)
 
     decoder = Dense(128, activation="relu", name="melody_decoder_dense2", kernel_regularizer=l2(0.00001))(decoder)
-    decoder = TimeDistributed(Dense(output_length, activation="softmax", kernel_regularizer=l2(0.00001)),
+    decoder = TimeDistributed(Dense(n_classes, activation="softmax", kernel_regularizer=l2(0.00001)),
                               name="melody_decoder")(decoder)  # Output layer
 
     return decoder
 
 
-def build_model(output_length_rhythm: int, n_repeat_rhythm: int, output_length_melody: int, n_repeat_melody: int):
+def build_model(n_classes_rhythm: int, n_notes_rhythm: int, n_classes_melody: int, n_notes_melody: int):
     """Build the Attention model with the encoders and decoders."""
     rhythm_input, rhythm_attention = rhythm_encoder()
     melody_input, melody_attention = melody_encoder()
@@ -134,8 +134,8 @@ def build_model(output_length_rhythm: int, n_repeat_rhythm: int, output_length_m
     concat = Dropout(0.1)(concat)
 
     # Decoder
-    rhythm_dec = rhythm_decoder(output_length_rhythm, n_repeat_rhythm, concat)
-    melody_dec = melody_decoder(output_length_melody, n_repeat_melody, concat)
+    rhythm_dec = rhythm_decoder(n_classes_rhythm, n_notes_rhythm, concat)
+    melody_dec = melody_decoder(n_classes_melody, n_notes_melody, concat)
 
     return Model(inputs=encoder_inputs, outputs=[rhythm_dec, melody_dec])
 

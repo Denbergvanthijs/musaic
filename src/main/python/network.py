@@ -256,8 +256,8 @@ class NeuralNet():
             chord_num = int(chord_mode)
 
         if sample_mode in ("argmax", "best"):  # Return the best output
-            sampled_rhythm = np.argmax(output[0], axis=-1)
-            sampled_melody = np.argmax(output[1], axis=-1)
+            sampled_rhythm = np.argmax(output[0], axis=-1)  # (batch, 4, 127) to (batch, 4)
+            sampled_melody = np.argmax(output[1], axis=-1)  # (batch, 48, 25) to (batch, 48)
             sampled_chords = [list(rand.choice(self.vocabulary["melody"], p=curr_p, size=chord_num, replace=True))
                               for curr_p in output[1][0]]  # Sample chord_num chords from the melody distribution
 
@@ -515,13 +515,6 @@ class TransformerNet(NeuralNet):
 
         rhythm_output = self.interpreter.get_tensor(self.output_details[0]["index"])
         melody_output = self.interpreter.get_tensor(self.output_details[1]["index"])
-
-        rhythm_output = rhythm_output.transpose(0, 2, 1)  # New shape (1, 4, 127)
-        melody_output = melody_output.transpose(0, 2, 1)  # New shape (1, 48, 25)
-
-        # Normalise with softmax due to decimal precision issues
-        rhythm_output = np.exp(rhythm_output) / np.sum(np.exp(rhythm_output), axis=2, keepdims=True)
-        melody_output = np.exp(melody_output) / np.sum(np.exp(melody_output), axis=2, keepdims=True)
 
         # Postprocess output
         sampled_rhythm, sampled_melody, sampled_chords = self.sampleOutput([rhythm_output, melody_output], kwargs)  # Postprocess output
