@@ -128,7 +128,7 @@ Make sure to use the proper version of Tensorflow 2, Keras, Numpy and other libr
 
 Currently, the NN architecture is as follows:
 
-![Current NN](.\src\main\python\smt22\model_thijs.png)
+![Current NN](src/main/python/smt22/model_thijs.png)
 
 ### Generating batches of music
 
