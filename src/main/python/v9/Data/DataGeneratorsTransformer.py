@@ -1,11 +1,12 @@
 from itertools import tee
 
 import numpy as np
-from Data.DataGeneratorsLeadMeta import \
+from tensorflow.keras.utils import to_categorical
+from v9.Data.DataGeneratorsLeadMeta import \
     CombinedGenerator as CombinedGeneratorBase
-from Data.DataGeneratorsLeadMeta import MelodyGenerator
-from Data.DataGeneratorsLeadMeta import RhythmGenerator as RhythmGeneratorBase
-from keras.utils import to_categorical
+from v9.Data.DataGeneratorsLeadMeta import MelodyGenerator
+from v9.Data.DataGeneratorsLeadMeta import \
+    RhythmGenerator as RhythmGeneratorBase
 
 
 class RhythmGenerator(RhythmGeneratorBase):

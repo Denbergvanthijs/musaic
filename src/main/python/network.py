@@ -25,6 +25,7 @@ if PLAYER in (VER_9, EUROAI):
 
 if PLAYER == SMT22:
     import tensorflow as tf
+    from smt22.utils import preprocess
     from v9.Nets.ChordNetwork import ChordNetwork
 
 
@@ -140,12 +141,7 @@ class NeuralNet():
         meta_data_embedded = self.embedMetaData(kwargs["meta_data"])
         lead_rhythm, lead_melody = self.getLead(kwargs, context_rhythms, context_melodies)
 
-        # TEMP: Write model input to file for debugging
-        with open("model_input.txt", "w+") as f:
-            for name, i in zip(["context_rhythms", "context_melodies", "meta_data_embedded", "lead_rhythm", "lead_melody"],
-                               [context_rhythms, context_melodies, meta_data_embedded, lead_rhythm, lead_melody]):
-                f.write(f"{name}:\n{i}\n\n")
-
+        # Generate output
         model_input = [*context_rhythms, context_melodies, meta_data_embedded, lead_rhythm, lead_melody]
         model_output = self.model.predict(x=model_input)
 
@@ -260,8 +256,8 @@ class NeuralNet():
             chord_num = int(chord_mode)
 
         if sample_mode in ("argmax", "best"):  # Return the best output
-            sampled_rhythm = np.argmax(output[0], axis=-1)
-            sampled_melody = np.argmax(output[1], axis=-1)
+            sampled_rhythm = np.argmax(output[0], axis=-1)  # (batch, 4, 127) to (batch, 4)
+            sampled_melody = np.argmax(output[1], axis=-1)  # (batch, 48, 25) to (batch, 48)
             sampled_chords = [list(rand.choice(self.vocabulary["melody"], p=curr_p, size=chord_num, replace=True))
                               for curr_p in output[1][0]]  # Sample chord_num chords from the melody distribution
 
@@ -438,13 +434,16 @@ class TransformerNet(NeuralNet):
         - Uses a Transformer instead of an LSTM
         - Changed try-except to if-else for callbacks
         """
-        print("[NeuralNet] Initialising...")  # TODO: Change prints to logging
         self.loaded = False  # Set to true when model is loaded
+        print("[NeuralNet] Initialising...")  # TODO: Change prints to logging
         time_start = time.time()
 
         print("[NeuralNet] === Using SMT22 model ===")
-        self.model_rhythm = tf.keras.models.load_model("./src/main/python/smt22/model_rhythm.h5")
-        self.model_melody = tf.keras.models.load_model("./src/main/python/smt22/model_melody.h5")
+        self.interpreter = tf.lite.Interpreter("./src/main/python/smt22/model.tflite")
+        self.interpreter.allocate_tensors()
+
+        self.input_details = self.interpreter.get_input_details()
+        self.output_details = self.interpreter.get_output_details()
 
         fp_euroai = "./src/main/resources/base/euroAI/"
         fp_chord_network = os.path.join(fp_euroai, "chord")
@@ -485,8 +484,6 @@ class TransformerNet(NeuralNet):
 
         print(f"[NeuralNet] Neural network loaded in {int(time.time() - time_start)} seconds")
 
-        self.loaded = True  # Set to true when model is loaded
-
         if init_callbacks:  # Call any callbacks
             if not hasattr(init_callbacks, "__iter__"):  # Check if iterable
                 init_callbacks = [init_callbacks]
@@ -494,26 +491,7 @@ class TransformerNet(NeuralNet):
             for f in init_callbacks:
                 f()
 
-    @staticmethod
-    def preprocess(X, y=None):
-        """Preprocesses the data for the model.
-
-        Input is one iteration of the DataGenerator from DataGeneratorsTransformer.
-        """
-        context_rhythms = np.concatenate([x.reshape(x.shape[0], -1) for x in X[:4]], axis=1)
-        context_melodies = X[4].reshape(X[4].shape[0], -1)
-
-        meta = X[5]
-
-        lead_rhythm = X[6].reshape(X[6].shape[0], -1)
-        lead_melody = X[7].reshape(X[7].shape[0], -1)
-
-        X_processed = np.concatenate([context_rhythms, context_melodies, meta, lead_rhythm, lead_melody], axis=1)
-
-        if y is not None:
-            return X_processed, y[0], y[1]
-
-        return X_processed
+        self.loaded = True  # Set to true when model is loaded
 
     def generateBar(self, octave: int = 4, **kwargs) -> list:
         """Generate a bar of music.
@@ -527,18 +505,18 @@ class TransformerNet(NeuralNet):
         lead_rhythm, lead_melody = self.getLead(kwargs, context_rhythms, context_melodies)
 
         model_input = [*context_rhythms, context_melodies, meta_data_preprocessed, lead_rhythm, lead_melody]
+        model_input_preprocessed = preprocess(model_input)
 
-        # TEMP: Write model input to file for debugging
-        with open("model_input.txt", "w+") as f:
-            for name, i in zip(["context_rhythms", "context_melodies", "meta_data_embedded", "lead_rhythm", "lead_melody"],
-                               [context_rhythms, context_melodies, meta_data_preprocessed, lead_rhythm, lead_melody]):
-                f.write(f"{name}:\n{i}\n\n")
+        # Generate output
+        for c, data in enumerate(model_input_preprocessed):
+            self.interpreter.set_tensor(self.input_details[c]["index"], data)
 
-        model_input_preprocessed = TransformerNet.preprocess(model_input)
+        self.interpreter.invoke()
 
-        rhythm_output = self.model_rhythm.predict(x=model_input_preprocessed)
-        melody_output = self.model_melody.predict(x=model_input_preprocessed)
+        rhythm_output = self.interpreter.get_tensor(self.output_details[0]["index"])
+        melody_output = self.interpreter.get_tensor(self.output_details[1]["index"])
 
+        # Postprocess output
         sampled_rhythm, sampled_melody, sampled_chords = self.sampleOutput([rhythm_output, melody_output], kwargs)  # Postprocess output
         return self.convertContextToNotes(sampled_rhythm[0], sampled_melody[0], sampled_chords, kwargs, octave=octave)
 
@@ -556,23 +534,35 @@ class NetworkEngine(multiprocessing.Process):
 
         self.network = None
 
+    def load_network(self):
+        """Load the network.
+
+        Changes from the original:
+        - Moved the network loading to this method
+        """
+        if PLAYER in (VER_9, EUROAI):
+            self.network = NeuralNet(resources_path=self.resources_path, init_callbacks=self.init_callbacks)
+
+        elif PLAYER == SMT22:
+            self.network = TransformerNet(resources_path=self.resources_path, init_callbacks=self.init_callbacks)
+
+        elif PLAYER == RANDOM:
+            self.network = RandomPlayer()
+
+        else:
+            raise ValueError(f"Invalid player type: {PLAYER}")
+
+        print("[NetworkEngine] network loaded")
+
     def run(self) -> None:
         """Starts the network engine process.
 
         Changes from the original:
         - Added support for the TransformerNet
+        - Moved the network loading to the load_network method
         """
-        if not self.network:
-            if PLAYER in (VER_9, EUROAI):
-                self.network = NeuralNet(resources_path=self.resources_path, init_callbacks=self.init_callbacks)
-
-            elif PLAYER == SMT22:
-                self.network = TransformerNet(resources_path=self.resources_path, init_callbacks=self.init_callbacks)
-
-            elif PLAYER == RANDOM:
-                self.network = RandomPlayer()
-
-            print("[NetworkEngine] network loaded")
+        if not self.network:  # If the network is not loaded, load it
+            self.load_network()
 
         while not self.stopRequest.is_set():
             try:
@@ -592,6 +582,9 @@ class NetworkEngine(multiprocessing.Process):
 
     def isLoaded(self) -> bool:
         """Returns True if the network is loaded, False otherwise."""
+        if not self.network:  # Check if any network has been assigned yet
+            return False
+
         return self.network.loaded
 
     def join(self, timeout=1):

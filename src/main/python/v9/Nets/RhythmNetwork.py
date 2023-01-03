@@ -5,7 +5,7 @@ from keras.layers import concatenate as Concat
 from keras.losses import categorical_crossentropy
 from keras.metrics import categorical_accuracy
 from keras.models import Model
-from Nets.RhythmEncoder import RhythmEncoder
+from v9.Nets.RhythmEncoder import RhythmEncoder
 
 
 class RhythmNetwork(Model):

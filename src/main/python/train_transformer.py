@@ -1,6 +1,6 @@
 from collections import Counter
 
-from Data.DataGeneratorsTransformer import CombinedGenerator
+from v9.Data.DataGeneratorsTransformer import CombinedGenerator
 
 if __name__ == "__main__":
     # Inputs
@@ -22,11 +22,14 @@ if __name__ == "__main__":
     print(f"Total number of tracks: {sum([k * v for k, v in Counter(num_pieces).items()])}")
 
     data_iter = combined_generator.generate_data(rhythm_context_size=rhythm_context_size,
-                                                 melody_context_size=melody_context_size,
-                                                 with_metaData=True)
+                                                 melody_context_size=melody_context_size)
 
     # Print the first iteration of the data
     X, y = next(data_iter)
 
     print(len(X), [x.shape for x in X])  # [*rhythm_x, melody_x, meta, rhythm_lead, melody_lead]
     print(len(y), [y.shape for y in y])  # [rhythm_y, melody_y]
+    print(y[0].min(), y[0].max())
+    print(y[1].min(), y[1].max())
+    print(y[0].argmax(axis=2)[0])
+    print(y[1].argmax(axis=2)[0])
