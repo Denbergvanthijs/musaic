@@ -93,12 +93,12 @@ if __name__ == "__main__":
     opt = Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, clipnorm=None)
     precision = tf.keras.metrics.Precision(name='precision')
     recall = tf.keras.metrics.Recall(name='recall')
-    model.compile(optimizer=opt, loss="categorical_crossentropy", metrics=[f1_custom, precision, recall])
+    model.compile(optimizer=opt, loss="categorical_crossentropy", metrics=[f1_custom, precision, recall], loss_weights=[0.01, 0.99])
 
     model.summary()
     plot_model(model, to_file="./src/main/python/smt22/model_thijs.png", show_shapes=True, dpi=300)
 
-    hist_model = model.fit(Xs, ys, epochs=10, verbose=1, batch_size=32, validation_split=0.15,
+    hist_model = model.fit(Xs, ys, epochs=10, verbose=1, batch_size=16, validation_split=0.10,
                            shuffle=True, use_multiprocessing=True, callbacks=[tensorboard_cb])
 
     # Plot confusion matrix

@@ -43,8 +43,10 @@ def meta_encoder(process_meta: bool = True):
     Has 7 inputs if the meta data is processed, otherwise 10 inputs.
     """
     meta_input = Input(shape=((7 if process_meta else 10),), name="meta_input")
-    meta_dense1 = Dense(32, activation="relu", name="meta_dense1", kernel_regularizer=l2(0.00001))(meta_input)
-    meta_dense2 = Dense(64, activation="relu", name="meta_dense2", kernel_regularizer=l2(0.00001))(meta_dense1)
+    meta_dense1 = Dense(128, activation="relu", name="meta_dense1", kernel_regularizer=l2(0.00001))(meta_input)
+    meta_dense1 = Dropout(0.5)(meta_dense1)
+    meta_dense2 = Dense(128, activation="relu", name="meta_dense2", kernel_regularizer=l2(0.00001))(meta_dense1)
+    meta_dense2 = Dropout(0.5)(meta_dense2)
 
     return meta_input, meta_dense2
 
@@ -81,13 +83,15 @@ def lead_melody_encoder():
 
 def rhythm_decoder(n_classes: int, n_notes: int, input_layer):
     """Rhythm decoder with MultiHeadAttention layer. Used in build_model()."""
-    decoder = Dense(128, activation="relu", name="rhythm_decoder_dense1", kernel_regularizer=l2(0.00001))(input_layer)
+    decoder = Dense(2048, activation="relu", name="rhythm_decoder_dense1", kernel_regularizer=l2(0.00001))(input_layer)
+    decoder = Dropout(0.5)(decoder)
     decoder = RepeatVector(n_notes)(decoder)  # Repeat the output n_repeat times
 
     decoder = MultiHeadAttention(num_heads=4, key_dim=28, name="rhythm_decoder_attention")(decoder, decoder)
     decoder = BatchNormalization()(decoder)
 
-    decoder = Dense(128, activation="relu", name="rhythm_decoder_dense2", kernel_regularizer=l2(0.00001))(decoder)
+    decoder = Dense(2048, activation="relu", name="rhythm_decoder_dense2", kernel_regularizer=l2(0.00001))(decoder)
+    decoder = Dropout(0.5)(decoder)
     decoder = TimeDistributed(Dense(n_classes, activation="softmax", kernel_regularizer=l2(0.00001)),
                               name="rhythm_decoder")(decoder)  # Output layer
 
@@ -96,13 +100,15 @@ def rhythm_decoder(n_classes: int, n_notes: int, input_layer):
 
 def melody_decoder(n_classes: int, n_notes: int, input_layer):
     """Melody decoder with MultiHeadAttention layer. Used in build_model()."""
-    decoder = Dense(128, activation="relu", name="melody_decoder_dense1", kernel_regularizer=l2(0.00001))(input_layer)
+    decoder = Dense(2048, activation="relu", name="melody_decoder_dense1", kernel_regularizer=l2(0.00001))(input_layer)
+    decoder = Dropout(0.5)(decoder)
     decoder = RepeatVector(n_notes)(decoder)  # Repeat the output n_repeat times
 
     decoder = MultiHeadAttention(num_heads=8, key_dim=32, name="melody_decoder_attention")(decoder, decoder)
     decoder = BatchNormalization()(decoder)
 
-    decoder = Dense(128, activation="relu", name="melody_decoder_dense2", kernel_regularizer=l2(0.00001))(decoder)
+    decoder = Dense(2048, activation="relu", name="melody_decoder_dense2", kernel_regularizer=l2(0.00001))(decoder)
+    decoder = Dropout(0.5)(decoder)
     decoder = TimeDistributed(Dense(n_classes, activation="softmax", kernel_regularizer=l2(0.00001)),
                               name="melody_decoder")(decoder)  # Output layer
 
@@ -122,16 +128,18 @@ def build_model(n_classes_rhythm: int, n_notes_rhythm: int, n_classes_melody: in
     # Concat rhythm and melody inputs
     concat_context = Concatenate(axis=1, name="concat_context")([rhythm_attention, melody_attention])
     concat_context = GlobalAveragePooling1D(data_format="channels_last")(concat_context)  # Flatten the output
-    concat_context = Dense(128, activation="relu", name="dense_context", kernel_regularizer=l2(0.00001))(concat_context)
+    concat_context = Dense(1024, activation="relu", name="dense_context", kernel_regularizer=l2(0.00001))(concat_context)
+    concat_context = Dropout(0.5)(concat_context)
 
     # Concat leads
     concat_leads = Concatenate(axis=1, name="concat_leads")([lead_rhythm_attention, lead_melody_attention])
     concat_leads = GlobalAveragePooling1D(data_format="channels_last")(concat_leads)  # Flatten the output
-    concat_leads = Dense(32, activation="relu", name="dense_leads", kernel_regularizer=l2(0.00001))(concat_leads)
+    concat_leads = Dense(1024, activation="relu", name="dense_leads", kernel_regularizer=l2(0.00001))(concat_leads)
+    concat_leads = Dropout(0.5)(concat_leads)
 
     # Concat all inputs
     concat = Concatenate(axis=1, name="concat_all")([concat_context, concat_leads, meta_dense])  # Concatenate the outputs of the encoders
-    concat = Dropout(0.1)(concat)
+    concat = Dropout(0.5)(concat)
 
     # Decoder
     rhythm_dec = rhythm_decoder(n_classes_rhythm, n_notes_rhythm, concat)
