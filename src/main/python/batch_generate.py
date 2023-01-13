@@ -18,26 +18,22 @@ from core import DEFAULT_AI_PARAMS, DEFAULT_META_DATA, DEFAULT_SECTION_PARAMS
 
 """
 
-N = 10  # Number of songs to generate per variety
-ROOT_PATH = "./src/main/python/smt22/generated_euroai/"
+N = 6  # Number of songs to generate per variety
+ROOT_PATH = "./src/main/python/smt22/generated_smt22_new_parameters/"
 
-PARAMETER_RANGES = {"length": [2, 4, 8],  # See core.py for explanation
-                    "loop_alt_len": [0, 1],
+PARAMETER_RANGES = {"length": [5],  # See core.py for explanation
+                    "loop_alt_len": [0],
                     "sample_mode": ["dist"],
                     "chord_mode": [1],
-                    "injection_params": [(("qb", "eb"), "maj"),
-                                         (("qb",), "maj"),
-                                         (("qb", "lb"), "maj"),
-                                         (("fb", "eb"), "maj"),
-                                         (("tb", "fb"), "maj")]}
+                    "injection_params": [(("qb", "eb", "lb", "fb"), "maj")]}
 
-META_DATA_RANGES = {"span": (1, 30),  # See core.py for explanation
-                    "jump": (0, 12),
-                    "cDens": (0, 1),
+META_DATA_RANGES = {"span": (10.0, 10.0),  # See core.py for explanation
+                    "jump": (1.5, 1.5),
+                    "cDens": (0.25, 0.25),
                     # "cDepth": (1, 5),
-                    "tCent": (40, 80),
-                    "rDens": (0, 8),
-                    "pos": (0, 1)}
+                    "tCent": (62, 62),
+                    "rDens": (1.2, 1.2),
+                    "pos": (0.0, 0.0)}
 
 
 def new_meta_data(default_meta_data: dict = DEFAULT_META_DATA, meta_data_ranges: dict = META_DATA_RANGES) -> dict:
