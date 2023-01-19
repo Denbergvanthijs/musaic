@@ -15,7 +15,7 @@ VER_9 = 1
 EUROAI = 2
 SMT22 = 3
 
-PLAYER = 3
+PLAYER = 0
 
 if PLAYER in (VER_9, EUROAI):
     from v9.Nets.ChordNetwork import ChordNetwork
@@ -39,7 +39,10 @@ class RandomPlayer():
         """Generates a random bar of music. Returns a list of MIDI notes in the form (pitch, start tick, end tick)."""
         notes = []
         for i in range(4):
+            length = random.randint(1, 4)
+            offset = random.randint(0, 4-length) * 6
             note = (random.randint(60, 80), i * 24, (i + 1) * 24)  # (pitch, start tick, end tick)
+            note = (note[0], note[1] + offset, note[1] + offset + (length * 6))
             notes.append(note)
 
         return notes
