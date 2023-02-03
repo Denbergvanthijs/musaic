@@ -3,6 +3,7 @@ from collections import Counter
 from v9.Data.DataGeneratorsTransformer import CombinedGenerator
 
 if __name__ == "__main__":
+    """This file provides an example for the data outputted by the new Transformer data generator."""
     # Inputs
     fp_music = "./src/main/python/v9/Data/lessfiles"  # "../../Data/music21"
 
