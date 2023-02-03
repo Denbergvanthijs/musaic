@@ -96,7 +96,7 @@ if __name__ == "__main__":
     model.compile(optimizer=opt, loss="categorical_crossentropy", metrics=[f1_custom, precision, recall])
 
     model.summary()
-    plot_model(model, to_file="./src/main/python/smt22/model_thijs.png", show_shapes=True, dpi=300)
+    plot_model(model, to_file="./src/main/python/smt22/model.png", show_shapes=True, dpi=300)
 
     hist_model = model.fit(Xs, ys, epochs=10, verbose=1, batch_size=32, validation_split=0.15,
                            shuffle=True, use_multiprocessing=True, callbacks=[tensorboard_cb])

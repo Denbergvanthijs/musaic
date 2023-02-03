@@ -87,7 +87,7 @@ if __name__ == "__main__":
     model_rhythm.summary()
     model_melody.summary()
 
-    # plot_model(model, to_file="./src/main/python/smt22/model_thijs.png", show_shapes=True, dpi=300)
+    # plot_model(model, to_file="./src/main/python/smt22/model.png", show_shapes=True, dpi=300)
 
     hist_rhythm = model_rhythm.fit(Xs, np.array(ys_rhythm), epochs=10, verbose=1, batch_size=32, shuffle=True,
                                    use_multiprocessing=True, workers=6, callbacks=[tensorboard_cb])
