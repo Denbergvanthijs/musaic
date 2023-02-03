@@ -118,7 +118,7 @@ Note: there is also a small bug where re-opening the options dialog will reset w
 
 ### Training a Neural Network
 
-Currently, the neural network (NN) from `.\src\main\python\train_transformer_thijs.py` is implemented. This NN can be trained with the following command:
+Currently, the neural network (NN) from `.\src\main\python\train_transformer.py` is implemented. This NN can be trained with the following command:
 
 ```bash
 python .\src\main\python\train_transformer_thijs.py
@@ -128,7 +128,7 @@ Make sure to use the proper version of Tensorflow 2, Keras, Numpy and other libr
 
 Currently, the NN architecture is as follows:
 
-![Current NN](src/main/python/smt22/model_thijs.png)
+![Current NN](src/main/python/smt22/model.png)
 
 ### Generating batches of music
 
