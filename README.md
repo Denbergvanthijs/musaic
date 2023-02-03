@@ -130,6 +130,8 @@ Currently, the NN architecture is as follows:
 
 ![Current NN](src/main/python/smt22/model.png)
 
+Training scripts for other configurations of models can also be found, they are named `train_*.py`. These models are not guaranteed to work and require some changes to musaic.
+
 ### Generating batches of music
 
 The script to generate a batch of music can be found in `.\src\main\python\batch_generate.py`. Run this script as the following:
@@ -141,6 +143,10 @@ python .\src\main\python\batch_generate.py
 Make sure you are using the correct Python installation, Tensorflow version and have selected the correct `PLAYER`. You can change the `PLAYER` in the `.\src\main\python\network.py` script. Generated music is stored in the `ROOT_PATH` folder which can be altered in the `batch_generate.py` script. Each combination of `PARAMETER_RANGES` is used to generate `N` songs. For instance, if you have `30` combinations of parameters and set `N` to `10`, a total of `30 * 10 = 300` songs will be generated.
 
 Due to multiprocessing issues, the `Engine()` needs to be re-created after each song. This will prevent memory leakage issues that cause the program to become stuck after several songs.
+
+### Example data output
+
+Example data which the model is trained on can be found in the pickle files at `.\src\main\python\v9\Data\lessfiles`. The contents of these files can be inspected with the `data_exploration.ipynb` notebook. The new data generator is showcased in `data_generator_example.py`.
 
 ## Issues
 
